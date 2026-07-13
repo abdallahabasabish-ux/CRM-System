@@ -6,15 +6,13 @@ import {
   query,
   orderBy,
   limit,
-  onSnapshot,
-  where
+  onSnapshot
 } from 'firebase/firestore';
 
 // ============================
 // متغيرات عامة
 // ============================
 let customersCount = 0;
-let ordersCount = 0;
 let activeOrdersCount = 0;
 let completedOrdersCount = 0;
 let totalRevenue = 0;
@@ -33,7 +31,7 @@ onAuthStateChangedCallback(async (user) => {
     window.location.href = 'login.html';
     return;
   }
-  // تحديث بيانات المستخدم في الـ Sidebar
+  // تحديث بيانات المستخدم
   const sidebarUserName = document.getElementById('sidebarUserName');
   const sidebarUserEmail = document.getElementById('sidebarUserEmail');
   const sidebarAvatar = document.getElementById('sidebarAvatar');
@@ -49,14 +47,13 @@ onAuthStateChangedCallback(async (user) => {
 });
 
 // ============================
-// 2. تسجيل الخروج وتبديل الوضع
+// 2. تسجيل الخروج وتبديل الوضع (نفس الكود السابق)
 // ============================
 document.getElementById('logoutBtn')?.addEventListener('click', async () => {
   await logoutUser();
   window.location.href = 'login.html';
 });
 
-// تبديل الوضع المظلم
 const themeToggle = document.getElementById('themeToggle');
 const htmlElement = document.documentElement;
 const savedTheme = localStorage.getItem('theme') || 'light';
@@ -79,7 +76,6 @@ if (themeToggle) {
   });
 }
 
-// تبديل Sidebar
 const sidebarToggle = document.getElementById('sidebarToggle');
 const sidebar = document.getElementById('sidebar');
 if (sidebarToggle && sidebar) {
@@ -113,7 +109,7 @@ async function loadServices() {
 }
 
 // ============================
-// 4. تحميل البيانات (قراءة لمرة واحدة)
+// 4. تحميل البيانات الأولية
 // ============================
 async function loadDashboardData() {
   try {
@@ -123,12 +119,11 @@ async function loadDashboardData() {
 
     // الطلبات
     const ordersSnap = await getDocs(collection(db, 'orders'));
-    ordersCount = ordersSnap.size;
     activeOrdersCount = ordersSnap.docs.filter(doc => doc.data().status === 'قيد التنفيذ').length;
     completedOrdersCount = ordersSnap.docs.filter(doc => doc.data().status === 'مكتمل').length;
     totalRevenue = ordersSnap.docs.reduce((sum, doc) => sum + (doc.data().total || 0), 0);
 
-    // المدفوعات
+    // المدفوعات (جلب الكل لحساب الإجمالي والعدد)
     const paymentsSnap = await getDocs(collection(db, 'payments'));
     totalPayments = paymentsSnap.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
     paymentsCount = paymentsSnap.size;
@@ -163,15 +158,14 @@ async function loadDashboardData() {
 // 5. الاستماع للتحديثات الفورية
 // ============================
 function listenToRealtimeUpdates() {
-  // استماع للعملاء
+  // العملاء
   onSnapshot(collection(db, 'customers'), (snapshot) => {
     customersCount = snapshot.size;
     updateStats();
   });
 
-  // استماع للطلبات
+  // الطلبات
   onSnapshot(collection(db, 'orders'), (snapshot) => {
-    ordersCount = snapshot.size;
     activeOrdersCount = snapshot.docs.filter(doc => doc.data().status === 'قيد التنفيذ').length;
     completedOrdersCount = snapshot.docs.filter(doc => doc.data().status === 'مكتمل').length;
     totalRevenue = snapshot.docs.reduce((sum, doc) => sum + (doc.data().total || 0), 0);
@@ -180,13 +174,13 @@ function listenToRealtimeUpdates() {
     updateCharts(ordersData);
   });
 
-  // استماع للمدفوعات
+  // المدفوعات
   onSnapshot(collection(db, 'payments'), (snapshot) => {
     totalPayments = snapshot.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
     paymentsCount = snapshot.size;
     updateStats();
 
-    // تحديث جدول آخر المدفوعات
+    // تحديث جدول آخر الدفعات
     const sorted = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
@@ -198,9 +192,12 @@ function listenToRealtimeUpdates() {
     }).slice(0, 5);
     recentPayments = sorted;
     updateRecentPayments();
+
+    // تحديث الرسم البياني للمدفوعات (يتم إعادة رسمه)
+    updatePaymentsChart();
   });
 
-  // استماع لآخر العملاء (تحديث)
+  // آخر العملاء
   onSnapshot(query(collection(db, 'customers'), orderBy('createdAt', 'desc'), limit(5)), (snapshot) => {
     recentCustomers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     updateRecentCustomers();
@@ -276,12 +273,12 @@ function updateRecentCustomers() {
 }
 
 // ============================
-// 9. تحديث الرسوم البيانية (مع مخطط المدفوعات الجديد)
+// 9. تحديث الرسوم البيانية (بما فيها المدفوعات)
 // ============================
 function updateCharts(ordersData) {
   const colors = ['#ff6600', '#0d6efd', '#28a745', '#8b5cf6', '#ffc107', '#dc3545'];
 
-  // ===== 9.1 مخطط توزيع الخدمات =====
+  // --- 9.1 توزيع الخدمات ---
   const serviceCount = {};
   ordersData.forEach(order => {
     const sid = order.serviceId;
@@ -311,7 +308,7 @@ function updateCharts(ordersData) {
     });
   }
 
-  // ===== 9.2 مخطط الطلبات الشهرية =====
+  // --- 9.2 الطلبات الشهرية ---
   const monthlyOrders = {};
   const now = new Date();
   for (let i = 5; i >= 0; i--) {
@@ -355,17 +352,24 @@ function updateCharts(ordersData) {
     });
   }
 
-  // ===== 9.3 مخطط المدفوعات الشهرية (جديد) =====
-  // نجلب الدفعات ونحسبها شهرياً
+  // --- 9.3 تحديث مخطط المدفوعات (يُستدعى أيضاً بشكل منفصل) ---
+  updatePaymentsChart();
+}
+
+// ============================
+// 9.3 تحديث مخطط المدفوعات الشهرية (منفصل)
+// ============================
+async function updatePaymentsChart() {
   const monthlyPayments = {};
+  const now = new Date();
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
     monthlyPayments[key] = 0;
   }
 
-  // نستخدم onSnapshot أو نقوم بجلب الدفعات هنا
-  getDocs(collection(db, 'payments')).then(snap => {
+  try {
+    const snap = await getDocs(collection(db, 'payments'));
     snap.docs.forEach(doc => {
       const data = doc.data();
       const date = data.paymentDate?.toDate?.() || data.paymentDate;
@@ -408,7 +412,9 @@ function updateCharts(ordersData) {
         }
       });
     }
-  }).catch(err => console.error('Error fetching payments for chart:', err));
+  } catch (error) {
+    console.error('Error updating payments chart:', error);
+  }
 }
 
 // ============================
