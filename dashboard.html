@@ -109,33 +109,33 @@
     <!-- مساحة العمل -->
     <section id="workspace">
 
-      <!-- بطاقات الإحصائيات -->
+      <!-- بطاقات الإحصائيات (تُعبأ بواسطة JavaScript) -->
       <div class="stats-grid">
         <div class="stat-card">
           <div class="info">
             <h6>إجمالي العملاء</h6>
-            <h3 id="statCustomers">1,284</h3>
+            <h3 id="statCustomers">0</h3>
           </div>
           <div class="icon blue"><i class="fas fa-users"></i></div>
         </div>
         <div class="stat-card">
           <div class="info">
             <h6>الطلبات الجارية</h6>
-            <h3 id="statActiveOrders">342</h3>
+            <h3 id="statActiveOrders">0</h3>
           </div>
           <div class="icon yellow"><i class="fas fa-spinner"></i></div>
         </div>
         <div class="stat-card">
           <div class="info">
-            <h6>الأرباح الصافية</h6>
-            <h3 id="statRevenue">$45,672</h3>
+            <h6>الإيرادات الإجمالية</h6>
+            <h3 id="statRevenue">$0</h3>
           </div>
           <div class="icon green"><i class="fas fa-dollar-sign"></i></div>
         </div>
         <div class="stat-card">
           <div class="info">
             <h6>الطلبات المكتملة</h6>
-            <h3 id="statCompleted">1,023</h3>
+            <h3 id="statCompleted">0</h3>
           </div>
           <div class="icon purple"><i class="fas fa-check-circle"></i></div>
         </div>
@@ -153,7 +153,7 @@
         </div>
       </div>
 
-      <!-- جدول آخر العملاء (مثال) -->
+      <!-- جدول آخر العملاء (يُعبأ بواسطة JavaScript) -->
       <div class="table-wrapper">
         <div class="table-header">
           <h5><i class="fas fa-user-plus me-2"></i>آخر العملاء</h5>
@@ -164,9 +164,7 @@
               <tr><th>#</th><th>الاسم</th><th>الهاتف</th><th>المدفوع</th></tr>
             </thead>
             <tbody id="recentCustomers">
-              <tr><td>1</td><td>أحمد محمد</td><td>+966 55 123 4567</td><td>$2,500</td></tr>
-              <tr><td>2</td><td>سارة علي</td><td>+966 55 765 4321</td><td>$1,800</td></tr>
-              <tr><td>3</td><td>خالد إبراهيم</td><td>+966 55 987 6543</td><td>$4,200</td></tr>
+              <tr><td colspan="4" class="text-center text-muted">جاري تحميل العملاء...</td></tr>
             </tbody>
           </table>
         </div>
@@ -189,7 +187,9 @@
     }
   </script>
 
+  <!-- استدعاء JavaScript الرئيسي -->
   <script type="module" src="assets/js/main.js"></script>
+  <!-- استدعاء JavaScript الخاص بلوحة التحكم (سيقوم بتعبئة البيانات) -->
   <script type="module" src="assets/js/dashboard.js"></script>
 
 </body>
