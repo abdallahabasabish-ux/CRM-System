@@ -1,34 +1,34 @@
 import { onAuthStateChangedCallback, logoutUser } from './auth.js';
 
 // ============================
-// 1. التحقق من المصادقة
+// 1. التحقق من المصادقة وعرض بيانات المستخدم
 // ============================
 onAuthStateChangedCallback((user) => {
   if (!user) {
     window.location.href = 'login.html';
     return;
   }
+
   // تحديث بيانات المستخدم في الـ Sidebar
   const sidebarUserName = document.getElementById('sidebarUserName');
   const sidebarUserEmail = document.getElementById('sidebarUserEmail');
   const sidebarAvatar = document.getElementById('sidebarAvatar');
+
   if (sidebarUserName) sidebarUserName.textContent = user.displayName || user.email;
   if (sidebarUserEmail) sidebarUserEmail.textContent = user.email;
   if (sidebarAvatar) {
-    sidebarAvatar.textContent = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
+    const name = user.displayName || user.email;
+    sidebarAvatar.textContent = name.charAt(0).toUpperCase();
   }
 });
 
 // ============================
 // 2. تسجيل الخروج
 // ============================
-const logoutBtn = document.getElementById('logoutBtn');
-if (logoutBtn) {
-  logoutBtn.addEventListener('click', async () => {
-    await logoutUser();
-    window.location.href = 'login.html';
-  });
-}
+document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+  await logoutUser();
+  window.location.href = 'login.html';
+});
 
 // ============================
 // 3. تبديل الوضع المظلم (Dark Mode)
@@ -59,23 +59,19 @@ if (themeToggle) {
 }
 
 // ============================
-// 4. تبديل الـ Sidebar (للشاشات الصغيرة)
+// 4. تبديل القائمة الجانبية (للشاشات الصغيرة)
 // ============================
 const sidebarToggle = document.getElementById('sidebarToggle');
 const sidebar = document.getElementById('sidebar');
+const overlay = document.getElementById('sidebar-overlay');
+
 if (sidebarToggle && sidebar) {
   sidebarToggle.addEventListener('click', () => {
     sidebar.classList.toggle('active');
-    // إظهار/إخفاء الطبقة المظللة
-    const overlay = document.getElementById('sidebar-overlay');
     if (overlay) overlay.classList.toggle('active');
   });
 }
 
-// ============================
-// 5. إغلاق القائمة الجانبية عند النقر على الطبقة المظللة
-// ============================
-const overlay = document.getElementById('sidebar-overlay');
 if (overlay) {
   overlay.addEventListener('click', () => {
     sidebar.classList.remove('active');
@@ -84,7 +80,7 @@ if (overlay) {
 }
 
 // ============================
-// 6. الرسوم البيانية (Chart.js)
+// 5. الرسوم البيانية (Chart.js)
 // ============================
 if (typeof Chart !== 'undefined') {
   // مخطط دائري - توزيع الخدمات
