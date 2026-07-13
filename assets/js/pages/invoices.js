@@ -483,9 +483,7 @@ async function viewInvoice(id) {
   const customerPhone = customer ? customer.phone : '';
   const customerAddress = customer ? customer.address : '';
 
-  const logoHtml = settings.companyLogo
-    ? `<img src="${settings.companyLogo}" alt="شعار الشركة" class="logo" />`
-    : `<div style="font-size:24px;font-weight:bold;color:#ff6600;">${settings.companyName || 'شركتي'}</div>`;
+const logoHtml = `<img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEg_uOBH-XBPOdfEkh6JSeBwU4FOCTxJPkb2H4NgJhVj6DtsyzJxzITcOdbObjW3_Q1bUpq8tnV86m4Q5kHhitUCM5-J-OzBGjAdvCj2By0iBQ_FmFQAR6ytlFFd54kdT0xf9ibZnwzUwUtARA3mCi8Kj44NJQxff5jbvvq6h9SwRFLWyKw3qNZTeqWGcfJo/s200/a%20(1).png" alt="شعار الشركة" style="max-height:60px; max-width:150px; object-fit:contain;" />`;
 
   const html = `
     <div id="invoice-print-area" class="invoice-preview-area">
