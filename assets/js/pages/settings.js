@@ -7,6 +7,7 @@ onAuthStateChangedCallback(async (user) => {
     return;
   }
 
+
   // تحديث بيانات المستخدم في الـ Sidebar
   const sidebarUserName = document.getElementById('sidebarUserName');
   const sidebarUserEmail = document.getElementById('sidebarUserEmail');
