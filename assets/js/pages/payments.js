@@ -10,18 +10,22 @@ import {
   query,
   orderBy,
   getDocs,
-  runTransaction,
-  serverTimestamp
+  getDoc,
+  where
 } from 'firebase/firestore';
 
 // ============================
 // متغيرات عامة
 // ============================
-let payments = [];
-let customersList = [];
-let editingId = null;
-let paymentsListener = null;
-let paymentModalInstance = null;
+let invoices = [];
+let customers = [];
+let orders = [];
+let services = [];
+let settings = {};
+let invoicesListener = null;
+let invoicePreviewModalInstance = null;
+let createInvoiceModalInstance = null;
+let currentInvoiceId = null;
 
 // ============================
 // 1. دوال مساعدة
@@ -31,7 +35,7 @@ function showToast(message, type = 'success') {
     success: 'linear-gradient(to right, #00b09b, #96c93d)',
     error: 'linear-gradient(to right, #ff5f6d, #ffc371)',
     warning: 'linear-gradient(to right, #f7971e, #ffd200)',
-    info: 'linear-gradient(to right, #2193b0, #6dd5ed)'
+    info: 'linear-gradient(to right, #ff6600, #ff8533)'
   };
   Toastify({
     text: message,
@@ -58,40 +62,110 @@ function formatDate(date) {
 }
 
 // ============================
-// 2. تحميل العملاء
+// 2. جلب البيانات الأساسية
 // ============================
-async function loadCustomers() {
+async function loadSettings() {
   try {
-    const customersSnap = await getDocs(collection(db, 'customers'));
-    customersList = customersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    populateCustomerSelect();
+    const settingsDoc = await getDoc(doc(db, 'settings', 'general'));
+    if (settingsDoc.exists()) {
+      settings = settingsDoc.data();
+    } else {
+      settings = { companyName: 'شركتي', companyLogo: '', currency: '$' };
+    }
   } catch (error) {
-    console.error('Error loading customers:', error);
-    showToast('حدث خطأ في تحميل العملاء', 'error');
+    console.error('Error loading settings:', error);
+    settings = { companyName: 'شركتي', companyLogo: '', currency: '$' };
   }
 }
 
-function populateCustomerSelect() {
-  const select = document.getElementById('customerSelect');
-  if (!select) return;
-  select.innerHTML = '<option value="">اختر عميل...</option>';
-  customersList.forEach(c => {
-    const opt = document.createElement('option');
-    opt.value = c.id;
-    opt.textContent = c.name;
-    select.appendChild(opt);
-  });
+async function loadCustomersAndServices() {
+  try {
+    const customersSnap = await getDocs(collection(db, 'customers'));
+    customers = customersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    const servicesSnap = await getDocs(collection(db, 'services'));
+    services = servicesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error('Error loading customers/services:', error);
+  }
 }
 
 // ============================
-// 3. المصادقة والتهيئة
+// 3. تحميل طلبات العميل (للمودال)
+// ============================
+async function loadOrdersForCustomer(customerId) {
+  if (!customerId) {
+    document.getElementById('customerOrdersBody').innerHTML =
+      '<tr><td colspan="5" class="text-center text-muted">اختر عميلاً لعرض طلباته</td></tr>';
+    document.getElementById('ordersContainer').style.display = 'none';
+    return;
+  }
+  try {
+    const q = query(collection(db, 'orders'), where('customerId', '==', customerId));
+    const snap = await getDocs(q);
+    orders = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    // عرض الطلبات في الجدول
+    const tbody = document.getElementById('customerOrdersBody');
+    if (orders.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">لا توجد طلبات لهذا العميل</td></tr>';
+      document.getElementById('ordersContainer').style.display = 'block';
+      updateSelectedSummary();
+      return;
+    }
+
+    let html = '';
+    orders.forEach((order, index) => {
+      const service = services.find(s => s.id === order.serviceId);
+      const serviceName = service ? service.name : 'خدمة غير معروفة';
+      const price = order.total || 0;
+      html += `
+        <tr>
+          <td><input type="checkbox" class="order-checkbox" data-id="${order.id}" data-price="${price}" data-desc="${serviceName} (طلب #${order.orderNumber})" checked /></td>
+          <td>#${order.orderNumber || 'N/A'}</td>
+          <td>${escapeHtml(serviceName)}</td>
+          <td>$${price.toFixed(2)}</td>
+          <td>${escapeHtml(order.status || 'جديد')}</td>
+        </tr>
+      `;
+    });
+    tbody.innerHTML = html;
+    document.getElementById('ordersContainer').style.display = 'block';
+
+    // ربط أحداث الـ checkboxes
+    document.querySelectorAll('.order-checkbox').forEach(cb => {
+      cb.addEventListener('change', updateSelectedSummary);
+    });
+    document.getElementById('selectAllOrders').addEventListener('change', function() {
+      document.querySelectorAll('.order-checkbox').forEach(cb => cb.checked = this.checked);
+      updateSelectedSummary();
+    });
+
+    updateSelectedSummary();
+  } catch (error) {
+    console.error('Error loading orders:', error);
+    showToast('حدث خطأ في تحميل الطلبات', 'error');
+  }
+}
+
+function updateSelectedSummary() {
+  const checkboxes = document.querySelectorAll('.order-checkbox:checked');
+  const count = checkboxes.length;
+  let total = 0;
+  checkboxes.forEach(cb => total += parseFloat(cb.dataset.price) || 0);
+  document.getElementById('selectedCount').textContent = count;
+  document.getElementById('selectedTotal').textContent = `$${total.toFixed(2)}`;
+}
+
+// ============================
+// 4. المصادقة والتهيئة
 // ============================
 onAuthStateChangedCallback(async (user) => {
   if (!user) {
     window.location.href = '../login.html';
     return;
   }
-  // تحديث بيانات المستخدم في الـ Sidebar
+  // تحديث بيانات المستخدم
   const sidebarUserName = document.getElementById('sidebarUserName');
   const sidebarUserEmail = document.getElementById('sidebarUserEmail');
   const sidebarAvatar = document.getElementById('sidebarAvatar');
@@ -101,19 +175,20 @@ onAuthStateChangedCallback(async (user) => {
     sidebarAvatar.textContent = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
   }
 
-  await loadCustomers();
-  listenToPayments();
+  await loadSettings();
+  await loadCustomersAndServices();
+  listenToInvoices();
+  populateCustomerSelect();
 });
 
 // ============================
-// 4. تسجيل الخروج وتبديل الوضع
+// 5. تسجيل الخروج وتبديل الوضع
 // ============================
 document.getElementById('logoutBtn')?.addEventListener('click', async () => {
   await logoutUser();
   window.location.href = '../login.html';
 });
 
-// تبديل الوضع المظلم
 const themeToggle = document.getElementById('themeToggle');
 const htmlElement = document.documentElement;
 const savedTheme = localStorage.getItem('theme') || 'light';
@@ -136,7 +211,6 @@ if (themeToggle) {
   });
 }
 
-// تبديل Sidebar
 const sidebarToggle = document.getElementById('sidebarToggle');
 const sidebar = document.getElementById('sidebar');
 if (sidebarToggle && sidebar) {
@@ -155,82 +229,70 @@ if (overlay) {
 }
 
 // ============================
-// 5. تهيئة Modal
+// 6. قراءة الفواتير (Realtime)
 // ============================
-const modalElement = document.getElementById('paymentModal');
-if (modalElement) {
-  paymentModalInstance = new bootstrap.Modal(modalElement);
-}
+function listenToInvoices() {
+  const invoicesRef = collection(db, 'invoices');
+  const q = query(invoicesRef, orderBy('createdAt', 'desc'));
 
-// ============================
-// 6. قراءة المدفوعات (Realtime)
-// ============================
-function listenToPayments() {
-  const paymentsRef = collection(db, 'payments');
-  const q = query(paymentsRef, orderBy('paymentDate', 'desc'));
-
-  if (paymentsListener) {
-    paymentsListener();
+  if (invoicesListener) {
+    invoicesListener();
   }
 
-  paymentsListener = onSnapshot(q, (snapshot) => {
+  invoicesListener = onSnapshot(q, (snapshot) => {
     if (snapshot.empty) {
-      payments = [];
+      invoices = [];
       renderTable([]);
-      document.getElementById('totalPayments').textContent = '$0.00';
-      document.getElementById('resultCount').textContent = 'عرض 0 دفعة';
+      document.getElementById('resultCount').textContent = 'عرض 0 فاتورة';
       return;
     }
 
-    payments = snapshot.docs.map(doc => ({
+    invoices = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      paymentDate: doc.data().paymentDate?.toDate?.() || doc.data().paymentDate || null
+      createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt || null
     }));
 
-    const total = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
-    document.getElementById('totalPayments').textContent = `$${total.toFixed(2)}`;
-
     const searchTerm = document.getElementById('searchInput')?.value.trim().toLowerCase() || '';
-    const filtered = searchTerm ? filterPayments(searchTerm) : payments;
+    const filtered = searchTerm ? filterInvoices(searchTerm) : invoices;
     renderTable(filtered);
-    document.getElementById('resultCount').textContent = `عرض ${filtered.length} دفعة`;
+    document.getElementById('resultCount').textContent = `عرض ${filtered.length} فاتورة`;
   }, (error) => {
-    console.error('Error listening to payments:', error);
-    showToast('حدث خطأ في تحميل المدفوعات', 'error');
+    console.error('Error listening to invoices:', error);
+    showToast('حدث خطأ في تحميل الفواتير', 'error');
   });
 }
 
 // ============================
-// 7. عرض الجدول (مع Event Delegation)
+// 7. عرض الجدول
 // ============================
 function renderTable(data) {
-  const tbody = document.getElementById('paymentsTableBody');
+  const tbody = document.getElementById('invoicesTableBody');
   if (!tbody) return;
 
   if (!data || data.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">لا يوجد مدفوعات</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">لا يوجد فواتير</td></tr>`;
     return;
   }
 
   let html = '';
-  data.forEach((payment, index) => {
-    const customer = customersList.find(c => c.id === payment.customerId);
+  data.forEach((inv) => {
+    const customer = customers.find(c => c.id === inv.customerId);
     const customerName = customer ? customer.name : 'غير معروف';
+    const statusBadge = inv.status === 'مدفوعة' ? 'badge bg-success' : 'badge bg-warning text-dark';
 
     html += `
       <tr>
-        <td>${index + 1}</td>
+        <td><strong>#${inv.invoiceNumber || 'N/A'}</strong></td>
         <td>${escapeHtml(customerName)}</td>
-        <td>$${payment.amount ? payment.amount.toFixed(2) : '0.00'}</td>
-        <td>${escapeHtml(payment.method || '')}</td>
-        <td>${formatDate(payment.paymentDate)}</td>
-        <td>${escapeHtml(payment.notes || '')}</td>
+        <td>$${inv.total ? inv.total.toFixed(2) : '0.00'}</td>
+        <td><span class="${statusBadge}">${escapeHtml(inv.status || 'غير مدفوعة')}</span></td>
+        <td>${formatDate(inv.createdAt)}</td>
         <td>
-          <button class="btn btn-sm btn-outline-primary action-btn" data-action="edit" data-id="${payment.id}" title="تعديل">
-            <i class="fas fa-edit"></i>
+          <button class="btn btn-sm btn-outline-primary view-btn" data-id="${inv.id}" title="عرض">
+            <i class="fas fa-eye"></i>
           </button>
-          <button class="btn btn-sm btn-outline-danger action-btn" data-action="delete" data-id="${payment.id}" title="حذف">
+          <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${inv.id}" title="حذف">
             <i class="fas fa-trash"></i>
           </button>
         </td>
@@ -239,220 +301,314 @@ function renderTable(data) {
   });
 
   tbody.innerHTML = html;
-  setupTableActions();
-}
 
-// ============================
-// 7.1 Event Delegation للأزرار
-// ============================
-function setupTableActions() {
-  const tbody = document.getElementById('paymentsTableBody');
-  if (!tbody) return;
-  tbody.removeEventListener('click', handleTableClick);
-  tbody.addEventListener('click', handleTableClick);
-}
-
-function handleTableClick(e) {
-  const btn = e.target.closest('.action-btn');
-  if (!btn) return;
-  const action = btn.dataset.action;
-  const id = btn.dataset.id;
-  if (!action || !id) return;
-  e.preventDefault();
-  if (action === 'edit') openEditModal(id);
-  else if (action === 'delete') confirmDelete(id);
+  // ربط الأحداث
+  tbody.querySelectorAll('.view-btn').forEach(btn => {
+    btn.addEventListener('click', () => viewInvoice(btn.dataset.id));
+  });
+  tbody.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => confirmDelete(btn.dataset.id));
+  });
 }
 
 // ============================
 // 8. البحث
 // ============================
-function filterPayments(term) {
-  return payments.filter(p => {
-    const customer = customersList.find(c => c.id === p.customerId);
-    const customerName = customer?.name?.toLowerCase() || '';
-    return customerName.includes(term);
+function filterInvoices(term) {
+  return invoices.filter(inv => {
+    const customer = customers.find(c => c.id === inv.customerId);
+    const customerName = customer ? customer.name.toLowerCase() : '';
+    return (inv.invoiceNumber && inv.invoiceNumber.toLowerCase().includes(term)) ||
+           customerName.includes(term);
   });
 }
 
 document.getElementById('searchInput')?.addEventListener('input', (e) => {
   const term = e.target.value.trim().toLowerCase();
-  const filtered = term ? filterPayments(term) : payments;
+  const filtered = term ? filterInvoices(term) : invoices;
   renderTable(filtered);
-  document.getElementById('resultCount').textContent = `عرض ${filtered.length} دفعة`;
+  document.getElementById('resultCount').textContent = `عرض ${filtered.length} فاتورة`;
 });
 
 // ============================
-// 9. فتح مودال الإضافة
+// 9. تعبئة قائمة العملاء في مودال الإنشاء
 // ============================
-document.getElementById('addPaymentBtn')?.addEventListener('click', () => {
-  editingId = null;
-  document.getElementById('modalTitle').textContent = 'تسجيل دفعة جديدة';
-  document.getElementById('paymentForm').reset();
-  document.getElementById('paymentId').value = '';
-  document.getElementById('oldAmount').value = '';
-
-  // تفعيل Flatpickr
-  if (typeof flatpickr !== 'undefined') {
-    flatpickr('#paymentDate', {
-      locale: 'ar',
-      dateFormat: 'Y-m-d',
-      defaultDate: new Date().toISOString().slice(0,10)
-    });
-  }
-
-  populateCustomerSelect();
-
-  if (paymentModalInstance) paymentModalInstance.show();
-});
-
-// ============================
-// 10. فتح مودال التعديل
-// ============================
-function openEditModal(id) {
-  const payment = payments.find(p => p.id === id);
-  if (!payment) {
-    showToast('الدفعة غير موجودة', 'error');
-    return;
-  }
-
-  editingId = id;
-  document.getElementById('modalTitle').textContent = 'تعديل الدفعة';
-  document.getElementById('paymentId').value = id;
-  document.getElementById('amount').value = payment.amount || '';
-  document.getElementById('oldAmount').value = payment.amount || 0;
-  document.getElementById('method').value = payment.method || '';
-  document.getElementById('paymentDate').value = formatDate(payment.paymentDate);
-  document.getElementById('paymentNotes').value = payment.notes || '';
-
-  // تعيين العميل المحدد
-  populateCustomerSelect();
-  const customer = customersList.find(c => c.id === payment.customerId);
-  if (customer) {
-    document.getElementById('customerSelect').value = customer.id;
-  }
-
-  if (typeof flatpickr !== 'undefined') {
-    flatpickr('#paymentDate', {
-      locale: 'ar',
-      dateFormat: 'Y-m-d',
-      defaultDate: payment.paymentDate || new Date()
-    });
-  }
-
-  if (paymentModalInstance) paymentModalInstance.show();
+function populateCustomerSelect() {
+  const select = document.getElementById('customerSelectInvoice');
+  if (!select) return;
+  select.innerHTML = '<option value="">اختر عميل...</option>';
+  customers.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.name;
+    select.appendChild(opt);
+  });
 }
 
 // ============================
-// 11. حفظ البيانات (Transaction)
+// 10. فتح مودال إنشاء فاتورة
 // ============================
-document.getElementById('savePaymentBtn')?.addEventListener('click', async () => {
-  const customerId = document.getElementById('customerSelect').value;
-  const amount = parseFloat(document.getElementById('amount').value);
-  const method = document.getElementById('method').value;
+document.getElementById('createInvoiceBtn')?.addEventListener('click', () => {
+  // تهيئة المودال
+  document.getElementById('ordersContainer').style.display = 'none';
+  document.getElementById('customerOrdersBody').innerHTML =
+    '<tr><td colspan="5" class="text-center text-muted">اختر عميلاً لعرض طلباته</td></tr>';
+  document.getElementById('selectedCount').textContent = '0';
+  document.getElementById('selectedTotal').textContent = '$0.00';
+  populateCustomerSelect();
 
-  if (!customerId || !amount || amount <= 0 || !method) {
-    showToast('الرجاء اختيار العميل والمبلغ وطريقة الدفع', 'warning');
+  // ربط حدث تغيير العميل
+  const customerSelect = document.getElementById('customerSelectInvoice');
+  customerSelect.removeEventListener('change', handleCustomerChange);
+  customerSelect.addEventListener('change', handleCustomerChange);
+
+  if (createInvoiceModalInstance) createInvoiceModalInstance.show();
+});
+
+function handleCustomerChange(e) {
+  const customerId = e.target.value;
+  loadOrdersForCustomer(customerId);
+}
+
+// ============================
+// 11. إنشاء الفاتورة من الطلبات المختارة
+// ============================
+document.getElementById('confirmCreateInvoiceBtn')?.addEventListener('click', async () => {
+  const customerId = document.getElementById('customerSelectInvoice').value;
+  if (!customerId) {
+    showToast('الرجاء اختيار عميل', 'warning');
     return;
   }
 
-  const paymentId = document.getElementById('paymentId').value;
-  const oldAmount = parseFloat(document.getElementById('oldAmount').value) || 0;
-  const paymentDate = document.getElementById('paymentDate').value || new Date().toISOString().slice(0,10);
-  const notes = document.getElementById('paymentNotes').value.trim();
+  const selectedCheckboxes = document.querySelectorAll('.order-checkbox:checked');
+  if (selectedCheckboxes.length === 0) {
+    showToast('الرجاء اختيار طلب واحد على الأقل', 'warning');
+    return;
+  }
 
-  const saveBtn = document.getElementById('savePaymentBtn');
+  // تجميع بيانات الطلبات المختارة
+  const selectedOrders = [];
+  let totalAmount = 0;
+  selectedCheckboxes.forEach(cb => {
+    const orderId = cb.dataset.id;
+    const order = orders.find(o => o.id === orderId);
+    if (order) {
+      selectedOrders.push(order);
+      totalAmount += order.total || 0;
+    }
+  });
+
+  // إنشاء رقم فاتورة تلقائي
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0,10).replace(/-/g,'');
+  const count = invoices.length + 1;
+  const invoiceNumber = `INV-${dateStr}-${String(count).padStart(3,'0')}`;
+
+  // بناء عناصر الفاتورة (items)
+  const items = selectedOrders.map(order => {
+    const service = services.find(s => s.id === order.serviceId);
+    const desc = service ? service.name : 'خدمة غير معروفة';
+    return {
+      description: `${desc} (طلب #${order.orderNumber})`,
+      amount: order.total || 0
+    };
+  });
+
+  const invoiceData = {
+    invoiceNumber,
+    customerId,
+    total: totalAmount,
+    paid: 0,
+    balance: totalAmount,
+    status: 'غير مدفوعة',
+    items: items,
+    orderIds: selectedOrders.map(o => o.id),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  const saveBtn = document.getElementById('confirmCreateInvoiceBtn');
   saveBtn.disabled = true;
-  saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ...';
+  saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الإنشاء...';
 
   try {
-    await runTransaction(db, async (transaction) => {
-      // 1. جلب بيانات العميل
-      const customerRef = doc(db, 'customers', customerId);
-      const customerDoc = await transaction.get(customerRef);
-      if (!customerDoc.exists()) {
-        throw new Error('العميل غير موجود');
-      }
-      const customerData = customerDoc.data();
-
-      // 2. حساب الرصيد الجديد
-      let newTotalPaid = (customerData.totalPaid || 0);
-      if (paymentId) {
-        // تعديل: نطرح المبلغ القديم ونضيف الجديد
-        newTotalPaid = newTotalPaid - oldAmount + amount;
-      } else {
-        // إضافة: نزيد المبلغ
-        newTotalPaid = newTotalPaid + amount;
-      }
-      // المتبقي = إجمالي الطلبات - إجمالي المدفوع (نفترض أن إجمالي الطلبات محسوب في customerData.totalOrdersValue)
-      // لكننا نستخدم balance كحقل منفصل، لكننا نحتاج إلى تحديثه بناءً على إجمالي الطلبات.
-      // هنا نستخدم balance كحقل مخزن في العميل، وسنقوم بتحديثه بتقليل المبلغ المدفوع.
-      const currentBalance = customerData.balance || 0;
-      let newBalance = currentBalance;
-      if (paymentId) {
-        // عند التعديل، نضيف الفرق (old - new) للرصيد
-        newBalance = currentBalance + (oldAmount - amount);
-      } else {
-        newBalance = currentBalance - amount;
-      }
-
-      // التأكد من أن الرصيد لا يصبح سالباً (يمكنك إلغاء هذا الشرط إذا أردت)
-      // if (newBalance < 0) throw new Error('الرصيد لا يمكن أن يكون سالباً');
-
-      // 3. تحديث العميل
-      transaction.update(customerRef, {
-        totalPaid: newTotalPaid,
-        balance: newBalance,
-        updatedAt: new Date().toISOString()
-      });
-
-      // 4. حفظ الدفعة
-      const paymentData = {
-        customerId,
-        customerName: customerData.name || null,
-        amount,
-        method,
-        paymentDate: paymentDate ? new Date(paymentDate + 'T00:00:00') : serverTimestamp(),
-        notes,
-        updatedAt: new Date().toISOString()
-      };
-
-      if (paymentId) {
-        const paymentRef = doc(db, 'payments', paymentId);
-        transaction.update(paymentRef, paymentData);
-      } else {
-        paymentData.createdAt = new Date().toISOString();
-        const paymentRef = doc(collection(db, 'payments'));
-        transaction.set(paymentRef, paymentData);
-      }
-    });
-
-    showToast(paymentId ? 'تم تحديث الدفعة بنجاح' : 'تم تسجيل الدفعة بنجاح', 'success');
-    if (paymentModalInstance) paymentModalInstance.hide();
+    await addDoc(collection(db, 'invoices'), invoiceData);
+    showToast('تم إنشاء الفاتورة بنجاح', 'success');
+    if (createInvoiceModalInstance) createInvoiceModalInstance.hide();
   } catch (error) {
-    console.error('Error saving payment:', error);
-    let msg = 'حدث خطأ أثناء الحفظ';
-    if (error.message.includes('غير موجود')) {
-      msg = error.message;
-    } else if (error.message.includes('سالباً')) {
-      msg = 'لا يمكن أن يصبح الرصيد سالباً';
-    }
-    showToast(msg, 'error');
+    console.error('Error creating invoice:', error);
+    showToast('حدث خطأ أثناء إنشاء الفاتورة', 'error');
   } finally {
     saveBtn.disabled = false;
-    saveBtn.innerHTML = '<i class="fas fa-save me-2"></i>حفظ';
+    saveBtn.innerHTML = '<i class="fas fa-file-invoice me-2"></i>إنشاء الفاتورة';
   }
 });
 
 // ============================
-// 12. حذف دفعة (Transaction)
+// 12. عرض الفاتورة مع الباركود والشعار
+// ============================
+async function viewInvoice(id) {
+  const invoice = invoices.find(inv => inv.id === id);
+  if (!invoice) {
+    showToast('الفاتورة غير موجودة', 'error');
+    return;
+  }
+  currentInvoiceId = id;
+
+  const customer = customers.find(c => c.id === invoice.customerId);
+  const customerName = customer ? customer.name : 'غير معروف';
+  const customerPhone = customer ? customer.phone : '';
+  const customerAddress = customer ? customer.address : '';
+
+  // تحضير الشعار
+  const logoHtml = settings.companyLogo
+    ? `<img src="${settings.companyLogo}" alt="شعار الشركة" class="logo" />`
+    : `<div style="font-size:24px;font-weight:bold;color:#ff6600;">${settings.companyName || 'شركتي'}</div>`;
+
+  // بناء HTML الفاتورة
+  const html = `
+    <div id="invoice-print-area" class="invoice-preview-area">
+      <div class="header">
+        <div class="company-info">
+          ${logoHtml}
+          <div style="font-weight:bold;font-size:16px;margin-top:5px;">${settings.companyName || ''}</div>
+          <div style="font-size:14px;color:#666;">${settings.companyAddress || ''}</div>
+          <div style="font-size:14px;color:#666;">${settings.companyPhone || ''} | ${settings.companyEmail || ''}</div>
+        </div>
+        <div class="invoice-title">
+          <h2>فاتورة</h2>
+          <div style="font-size:14px;color:#666;">رقم: #${invoice.invoiceNumber}</div>
+          <div style="font-size:14px;color:#666;">التاريخ: ${formatDate(invoice.createdAt)}</div>
+        </div>
+      </div>
+
+      <div class="customer-info">
+        <div style="font-weight:bold;">بيانات العميل</div>
+        <div style="font-size:14px;color:#333;">${escapeHtml(customerName)}</div>
+        <div style="font-size:14px;color:#333;">${escapeHtml(customerPhone)}</div>
+        <div style="font-size:14px;color:#333;">${escapeHtml(customerAddress)}</div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:70%;">البيان</th>
+            <th style="width:30%;text-align:center;">المبلغ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${invoice.items?.map(item => `
+            <tr>
+              <td>${escapeHtml(item.description)}</td>
+              <td style="text-align:center;">${settings.currency || '$'} ${item.amount?.toFixed(2) || '0.00'}</td>
+            </tr>
+          `).join('') || `
+            <tr><td colspan="2" class="text-center">لا توجد عناصر</td></tr>
+          `}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td style="font-weight:bold;">الإجمالي</td>
+            <td style="text-align:center;font-weight:bold;">${settings.currency || '$'} ${invoice.total?.toFixed(2) || '0.00'}</td>
+          </tr>
+          <tr>
+            <td style="font-weight:bold;">المدفوع</td>
+            <td style="text-align:center;font-weight:bold;">${settings.currency || '$'} ${invoice.paid?.toFixed(2) || '0.00'}</td>
+          </tr>
+          <tr>
+            <td style="font-weight:bold;color:#d9534f;">المتبقي</td>
+            <td style="text-align:center;font-weight:bold;color:#d9534f;">${settings.currency || '$'} ${invoice.balance?.toFixed(2) || '0.00'}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div class="qrcode-container">
+        <div id="qrcode-placeholder" style="width:120px;height:120px;background:#fff;border:1px solid #ddd;padding:5px;"></div>
+      </div>
+
+      <div class="footer">
+        ${settings.companyName || ''} - شكراً لثقتكم بنا
+      </div>
+    </div>
+  `;
+
+  document.getElementById('invoicePreviewBody').innerHTML = html;
+  if (invoicePreviewModalInstance) invoicePreviewModalInstance.show();
+
+  // إنشاء الباركود بعد عرض المودال
+  setTimeout(() => {
+    const qrElement = document.getElementById('qrcode-placeholder');
+    if (qrElement && typeof QRCode !== 'undefined') {
+      qrElement.innerHTML = '';
+      new QRCode(qrElement, {
+        text: invoice.invoiceNumber,
+        width: 120,
+        height: 120,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    }
+  }, 300);
+}
+
+// ============================
+// 13. طباعة، تحميل PDF، مشاركة واتساب
+// ============================
+document.getElementById('printInvoiceBtn')?.addEventListener('click', () => {
+  const content = document.getElementById('invoice-print-area');
+  if (!content) return;
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <html><head><title>فاتورة</title>
+    <style>body{font-family:Almarai,sans-serif;direction:rtl;padding:20px;}</style>
+    </head><body>${content.innerHTML}</body></html>
+  `);
+  win.document.close();
+  win.print();
+});
+
+document.getElementById('downloadPdfBtn')?.addEventListener('click', async () => {
+  const element = document.getElementById('invoice-print-area');
+  if (!element) {
+    showToast('لا توجد فاتورة للتحميل', 'warning');
+    return;
+  }
+  try {
+    const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#ffffff' });
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save(`فاتورة_${currentInvoiceId || 'new'}.pdf`);
+    showToast('تم تحميل الفاتورة PDF', 'success');
+  } catch (error) {
+    console.error('PDF error:', error);
+    showToast('حدث خطأ في تحميل PDF', 'error');
+  }
+});
+
+document.getElementById('shareWhatsappBtn')?.addEventListener('click', () => {
+  const invoice = invoices.find(inv => inv.id === currentInvoiceId);
+  const customer = customers.find(c => c.id === invoice?.customerId);
+  const phone = customer?.phone || '';
+  const message = `مرحباً، مرفق فاتورة جديدة رقم #${invoice?.invoiceNumber || ''}. شكراً لثقتكم بنا.`;
+  const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+  window.open(url, '_blank');
+});
+
+// ============================
+// 14. حذف فاتورة
 // ============================
 async function confirmDelete(id) {
-  const payment = payments.find(p => p.id === id);
-  if (!payment) return;
+  const invoice = invoices.find(inv => inv.id === id);
+  if (!invoice) return;
 
   const result = await Swal.fire({
     title: 'هل أنت متأكد؟',
-    text: `سيتم حذف الدفعة بقيمة $${payment.amount?.toFixed(2)} نهائيًا.`,
+    text: `سيتم حذف الفاتورة #${invoice.invoiceNumber} نهائيًا.`,
     icon: 'warning',
     showCancelButton: true,
     confirmButtonColor: '#dc3545',
@@ -463,40 +619,25 @@ async function confirmDelete(id) {
 
   if (result.isConfirmed) {
     try {
-      await runTransaction(db, async (transaction) => {
-        // حذف الدفعة
-        const paymentRef = doc(db, 'payments', id);
-        transaction.delete(paymentRef);
-
-        // تحديث رصيد العميل
-        const customerRef = doc(db, 'customers', payment.customerId);
-        const customerDoc = await transaction.get(customerRef);
-        if (customerDoc.exists()) {
-          const data = customerDoc.data();
-          const newTotalPaid = (data.totalPaid || 0) - payment.amount;
-          const newBalance = (data.balance || 0) + payment.amount;
-          transaction.update(customerRef, {
-            totalPaid: newTotalPaid,
-            balance: newBalance,
-            updatedAt: new Date().toISOString()
-          });
-        }
-      });
-      showToast('تم حذف الدفعة بنجاح', 'success');
+      await deleteDoc(doc(db, 'invoices', id));
+      showToast('تم حذف الفاتورة بنجاح', 'success');
     } catch (error) {
-      console.error('Error deleting payment:', error);
+      console.error('Error deleting invoice:', error);
       showToast('حدث خطأ أثناء الحذف', 'error');
     }
   }
 }
 
 // ============================
-// 13. إعادة تعيين النموذج عند الإغلاق
+// 15. تهيئة المودالات
 // ============================
-modalElement?.addEventListener('hidden.bs.modal', () => {
-  document.getElementById('paymentForm').reset();
-  document.getElementById('paymentId').value = '';
-  document.getElementById('oldAmount').value = '';
-});
+const previewModal = document.getElementById('invoicePreviewModal');
+if (previewModal) {
+  invoicePreviewModalInstance = new bootstrap.Modal(previewModal);
+}
+const createModal = document.getElementById('createInvoiceModal');
+if (createModal) {
+  createInvoiceModalInstance = new bootstrap.Modal(createModal);
+}
 
-console.log('✅ Payments page ready (customer-based payments)');
+console.log('✅ Invoices page ready with advanced features');
