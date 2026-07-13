@@ -3,49 +3,146 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>لوحة التحكم</title>
+  <title>لوحة التحكم - نظام إدارة الأعمال</title>
+  
+  <!-- Bootstrap 5 RTL -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet" />
+  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- الأنماط المخصصة -->
   <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
-  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-    <div class="container">
-      <a class="navbar-brand" href="#"><i class="fas fa-chart-pie me-2"></i>لوحة التحكم</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav ms-auto">
-          <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
-              <i class="fas fa-user-circle"></i> <span id="userName">المستخدم</span>
-            </a>
-            <ul class="dropdown-menu dropdown-menu-end">
-              <li><a class="dropdown-item" href="#" id="logoutBtn"><i class="fas fa-sign-out-alt me-2"></i>تسجيل الخروج</a></li>
-            </ul>
-          </li>
-        </ul>
-      </div>
-    </div>
-  </nav>
 
-  <div class="container mt-4">
-    <div class="row">
-      <div class="col-12">
-        <div class="card shadow-sm">
-          <div class="card-body">
-            <h3><i class="fas fa-tachometer-alt me-2"></i>مرحباً بك في النظام</h3>
-            <p class="text-muted">هذه لوحة تحكم مؤقتة، سيتم استبدالها بالكامل في الخطوات القادمة.</p>
-            <hr />
-            <p><strong>البريد الإلكتروني:</strong> <span id="userEmail"></span></p>
-            <p><strong>UID:</strong> <span id="userUid"></span></p>
-          </div>
+  <!-- ========================================= -->
+  <!-- SIDEBAR (القائمة الجانبية) -->
+  <!-- ========================================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <i class="fas fa-cube"></i>
+      <span>نظام إدارة الأعمال</span>
+    </div>
+
+    <ul class="sidebar-menu">
+      <li><a href="#" class="active"><i class="fas fa-chart-pie"></i> لوحة التحكم</a></li>
+      <li><a href="#"><i class="fas fa-users"></i> العملاء</a></li>
+      <li><a href="#"><i class="fas fa-concierge-bell"></i> الخدمات</a></li>
+      <li><a href="#"><i class="fas fa-clipboard-list"></i> الطلبات</a></li>
+      <li><a href="#"><i class="fas fa-user-tie"></i> الموظفون</a></li>
+      <li><a href="#"><i class="fas fa-file-invoice"></i> الفواتير</a></li>
+      <li><a href="#"><i class="fas fa-credit-card"></i> المدفوعات</a></li>
+      <li><a href="#"><i class="fas fa-chart-line"></i> التقارير</a></li>
+      <li><a href="#"><i class="fas fa-cog"></i> الإعدادات</a></li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="sidebarAvatar">م</div>
+        <div>
+          <div class="fw-bold" id="sidebarUserName" style="font-size: 14px;">المستخدم</div>
+          <div class="text-muted" style="font-size: 12px;" id="sidebarUserEmail">user@email.com</div>
         </div>
       </div>
     </div>
-  </div>
+  </aside>
 
+  <!-- ========================================= -->
+  <!-- MAIN CONTENT -->
+  <!-- ========================================= -->
+  <main class="main-content">
+
+    <!-- Top Navbar -->
+    <nav class="top-navbar">
+      <div>
+        <button class="d-lg-none btn btn-sm" id="sidebarToggle" style="background: var(--border-color); border-radius: 8px;">
+          <i class="fas fa-bars"></i>
+        </button>
+        <span class="page-title me-2">لوحة التحكم</span>
+      </div>
+      <div class="nav-actions">
+        <button class="theme-toggle" id="themeToggle" title="تبديل الوضع المظلم">
+          <i class="fas fa-moon"></i>
+        </button>
+        <button id="logoutBtn" title="تسجيل الخروج">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+      </div>
+    </nav>
+
+    <!-- محتوى الصفحة -->
+    <div class="container-fluid p-3 p-md-4">
+
+      <!-- بطاقات الإحصائيات -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="info">
+            <h6>إجمالي العملاء</h6>
+            <h3 id="statCustomers">1,284</h3>
+          </div>
+          <div class="icon blue"><i class="fas fa-users"></i></div>
+        </div>
+        <div class="stat-card">
+          <div class="info">
+            <h6>الطلبات الجارية</h6>
+            <h3 id="statActiveOrders">342</h3>
+          </div>
+          <div class="icon yellow"><i class="fas fa-spinner"></i></div>
+        </div>
+        <div class="stat-card">
+          <div class="info">
+            <h6>الأرباح الصافية</h6>
+            <h3 id="statRevenue">$45,672</h3>
+          </div>
+          <div class="icon green"><i class="fas fa-dollar-sign"></i></div>
+        </div>
+        <div class="stat-card">
+          <div class="info">
+            <h6>الطلبات المكتملة</h6>
+            <h3 id="statCompleted">1,023</h3>
+          </div>
+          <div class="icon purple"><i class="fas fa-check-circle"></i></div>
+        </div>
+      </div>
+
+      <!-- الرسوم البيانية -->
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h5>توزيع الخدمات</h5>
+          <canvas id="servicesChart" height="200"></canvas>
+        </div>
+        <div class="chart-card">
+          <h5>الطلبات الشهرية</h5>
+          <canvas id="ordersChart" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- جدول آخر العملاء (مثال سريع) -->
+      <div class="mt-4 card shadow-sm border-0">
+        <div class="card-body">
+          <h5 class="fw-bold"><i class="fas fa-user-plus me-2"></i>آخر العملاء</h5>
+          <div class="table-responsive mt-3">
+            <table class="table table-borderless align-middle">
+              <thead class="text-muted small">
+                <tr><th>#</th><th>الاسم</th><th>الهاتف</th><th>المدفوع</th></tr>
+              </thead>
+              <tbody id="recentCustomers">
+                <tr><td>1</td><td>أحمد محمد</td><td>+966 55 123 4567</td><td>$2,500</td></tr>
+                <tr><td>2</td><td>سارة علي</td><td>+966 55 765 4321</td><td>$1,800</td></tr>
+                <tr><td>3</td><td>خالد إبراهيم</td><td>+966 55 987 6543</td><td>$4,200</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ========================================= -->
+  <!-- Import Map & JavaScript -->
+  <!-- ========================================= -->
   <script type="importmap">
     {
       "imports": {
@@ -58,5 +155,8 @@
   </script>
 
   <script type="module" src="assets/js/main.js"></script>
+  <!-- الملف الخاص بلوحة التحكم (يُحمّل بعد main) -->
+  <script type="module" src="assets/js/dashboard.js"></script>
+
 </body>
 </html>
