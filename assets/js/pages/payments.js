@@ -10,8 +10,6 @@ import {
   query,
   orderBy,
   getDocs,
-  where,
-  runTransaction,
   serverTimestamp
 } from 'firebase/firestore';
 
@@ -19,7 +17,6 @@ import {
 // متغيرات عامة
 // ============================
 let payments = [];
-let ordersList = [];
 let customersList = [];
 let editingId = null;
 let paymentsListener = null;
@@ -60,7 +57,7 @@ function formatDate(date) {
 }
 
 // ============================
-// 2. تحميل العملاء وقوائم الطلبات
+// 2. تحميل العملاء
 // ============================
 async function loadCustomers() {
   try {
@@ -73,59 +70,6 @@ async function loadCustomers() {
   }
 }
 
-// ============================
-// 2.1 تحميل طلبات عميل معين (مع مؤشر تحميل)
-// ============================
-async function loadOrdersForCustomer(customerId) {
-  const orderSelect = document.getElementById('orderSelect');
-  if (!orderSelect) return;
-
-  // إذا لم يتم اختيار عميل، فعطل القائمة وامسح محتواها
-  if (!customerId) {
-    orderSelect.innerHTML = '<option value="">اختر طلب...</option>';
-    orderSelect.disabled = true;
-    return;
-  }
-
-  // عرض مؤشر تحميل
-  orderSelect.innerHTML = '<option value="">جاري تحميل الطلبات...</option>';
-  orderSelect.disabled = true;
-
-  try {
-    // استعلام لجلب الطلبات الخاصة بهذا العميل
-    const q = query(
-      collection(db, 'orders'),
-      where('customerId', '==', customerId)
-    );
-    const ordersSnap = await getDocs(q);
-
-    if (ordersSnap.empty) {
-      orderSelect.innerHTML = '<option value="">لا توجد طلبات لهذا العميل</option>';
-      orderSelect.disabled = true;
-      return;
-    }
-
-    // تخزين الطلبات في المصفوفة العامة
-    ordersList = ordersSnap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      remaining: (doc.data().total || 0) - (doc.data().paid || 0)
-    }));
-
-    // تعبئة القائمة المنسدلة
-    populateOrderSelect();
-
-    // تمكين القائمة بعد التحميل
-    orderSelect.disabled = false;
-
-  } catch (error) {
-    console.error('Error loading orders:', error);
-    orderSelect.innerHTML = '<option value="">حدث خطأ في تحميل الطلبات</option>';
-    orderSelect.disabled = true;
-    showToast('حدث خطأ في تحميل الطلبات', 'error');
-  }
-}
-
 function populateCustomerSelect() {
   const select = document.getElementById('customerSelect');
   if (!select) return;
@@ -134,23 +78,6 @@ function populateCustomerSelect() {
     const opt = document.createElement('option');
     opt.value = c.id;
     opt.textContent = c.name;
-    select.appendChild(opt);
-  });
-}
-
-function populateOrderSelect() {
-  const select = document.getElementById('orderSelect');
-  if (!select) return;
-  select.innerHTML = '<option value="">اختر طلب...</option>';
-  ordersList.forEach(o => {
-    const opt = document.createElement('option');
-    opt.value = o.id;
-    const remaining = o.remaining || 0;
-    opt.textContent = `#${o.orderNumber || 'N/A'} - المتبقي: $${remaining.toFixed(2)}`;
-    if (remaining <= 0) {
-      opt.disabled = true;
-      opt.textContent += ' (مدفوع بالكامل)';
-    }
     select.appendChild(opt);
   });
 }
@@ -281,21 +208,18 @@ function renderTable(data) {
   if (!tbody) return;
 
   if (!data || data.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4">لا يوجد مدفوعات</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">لا يوجد مدفوعات</td></tr>`;
     return;
   }
 
   let html = '';
   data.forEach((payment, index) => {
-    const order = ordersList.find(o => o.id === payment.orderId);
-    const orderNumber = order?.orderNumber || 'N/A';
     const customer = customersList.find(c => c.id === payment.customerId);
     const customerName = customer ? customer.name : 'غير معروف';
 
     html += `
       <tr>
         <td>${index + 1}</td>
-        <td><strong>#${orderNumber}</strong></td>
         <td>${escapeHtml(customerName)}</td>
         <td>$${payment.amount ? payment.amount.toFixed(2) : '0.00'}</td>
         <td>${escapeHtml(payment.method || '')}</td>
@@ -343,11 +267,9 @@ function handleTableClick(e) {
 // ============================
 function filterPayments(term) {
   return payments.filter(p => {
-    const order = ordersList.find(o => o.id === p.orderId);
-    const orderNumber = order?.orderNumber?.toLowerCase() || '';
     const customer = customersList.find(c => c.id === p.customerId);
     const customerName = customer?.name?.toLowerCase() || '';
-    return orderNumber.includes(term) || customerName.includes(term);
+    return customerName.includes(term);
   });
 }
 
@@ -366,7 +288,6 @@ document.getElementById('addPaymentBtn')?.addEventListener('click', () => {
   document.getElementById('modalTitle').textContent = 'تسجيل دفعة جديدة';
   document.getElementById('paymentForm').reset();
   document.getElementById('paymentId').value = '';
-  document.getElementById('orderId').value = '';
   document.getElementById('oldAmount').value = '';
 
   // تفعيل Flatpickr
@@ -380,30 +301,8 @@ document.getElementById('addPaymentBtn')?.addEventListener('click', () => {
 
   populateCustomerSelect();
 
-  // تعطيل قائمة الطلبات
-  const orderSelect = document.getElementById('orderSelect');
-  if (orderSelect) {
-    orderSelect.disabled = true;
-    orderSelect.innerHTML = '<option value="">اختر طلب...</option>';
-  }
-
-  // ربط مستمع تغيير العميل
-  const customerSelect = document.getElementById('customerSelect');
-  if (customerSelect) {
-    customerSelect.removeEventListener('change', handleCustomerChange);
-    customerSelect.addEventListener('change', handleCustomerChange);
-  }
-
   if (paymentModalInstance) paymentModalInstance.show();
 });
-
-// ============================
-// 9.1 معالج تغيير العميل
-// ============================
-function handleCustomerChange(e) {
-  const customerId = e.target.value;
-  loadOrdersForCustomer(customerId);
-}
 
 // ============================
 // 10. فتح مودال التعديل
@@ -418,7 +317,6 @@ function openEditModal(id) {
   editingId = id;
   document.getElementById('modalTitle').textContent = 'تعديل الدفعة';
   document.getElementById('paymentId').value = id;
-  document.getElementById('orderId').value = payment.orderId || '';
   document.getElementById('amount').value = payment.amount || '';
   document.getElementById('oldAmount').value = payment.amount || 0;
   document.getElementById('method').value = payment.method || '';
@@ -426,22 +324,8 @@ function openEditModal(id) {
   document.getElementById('paymentNotes').value = payment.notes || '';
 
   populateCustomerSelect();
-
-  // تعيين العميل المحدد
-  const customer = customersList.find(c => c.id === payment.customerId);
-  if (customer) {
-    document.getElementById('customerSelect').value = customer.id;
-    // تحميل طلبات هذا العميل واختيار الطلب المطابق
-    loadOrdersForCustomer(customer.id).then(() => {
-      document.getElementById('orderSelect').value = payment.orderId || '';
-    });
-  } else {
-    // إذا لم يكن العميل موجوداً، فعل قائمة الطلبات فارغة
-    const orderSelect = document.getElementById('orderSelect');
-    if (orderSelect) {
-      orderSelect.disabled = true;
-      orderSelect.innerHTML = '<option value="">اختر طلب...</option>';
-    }
+  if (payment.customerId) {
+    document.getElementById('customerSelect').value = payment.customerId;
   }
 
   if (typeof flatpickr !== 'undefined') {
@@ -456,16 +340,15 @@ function openEditModal(id) {
 }
 
 // ============================
-// 11. حفظ البيانات (Transaction)
+// 11. حفظ البيانات (بدون Transaction لأن لا يوجد طلب)
 // ============================
 document.getElementById('savePaymentBtn')?.addEventListener('click', async () => {
   const customerId = document.getElementById('customerSelect').value;
-  const orderId = document.getElementById('orderSelect').value;
   const amount = parseFloat(document.getElementById('amount').value);
   const method = document.getElementById('method').value;
 
-  if (!customerId || !orderId || !amount || amount <= 0 || !method) {
-    showToast('الرجاء اختيار العميل والطلب والمبلغ وطريقة الدفع', 'warning');
+  if (!customerId || !amount || amount <= 0 || !method) {
+    showToast('الرجاء اختيار العميل والمبلغ وطريقة الدفع', 'warning');
     return;
   }
 
@@ -479,63 +362,29 @@ document.getElementById('savePaymentBtn')?.addEventListener('click', async () =>
   saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ...';
 
   try {
-    await runTransaction(db, async (transaction) => {
-      const orderRef = doc(db, 'orders', orderId);
-      const orderDoc = await transaction.get(orderRef);
-      if (!orderDoc.exists()) {
-        throw new Error('الطلب غير موجود');
-      }
-      const orderData = orderDoc.data();
-      let newPaid = orderData.paid || 0;
+    const paymentData = {
+      customerId,
+      amount,
+      method,
+      paymentDate: paymentDate ? new Date(paymentDate + 'T00:00:00') : serverTimestamp(),
+      notes,
+      updatedAt: new Date().toISOString()
+    };
 
-      if (paymentId) {
-        newPaid = newPaid - oldAmount + amount;
-      } else {
-        newPaid = newPaid + amount;
-      }
-
-      if (newPaid > orderData.total) {
-        throw new Error('المبلغ الإجمالي للدفعات لا يمكن أن يتجاوز قيمة الطلب');
-      }
-      const balance = orderData.total - newPaid;
-
-      transaction.update(orderRef, {
-        paid: newPaid,
-        balance: balance,
-        updatedAt: new Date().toISOString()
-      });
-
-      const paymentData = {
-        orderId,
-        customerId,
-        orderNumber: orderData.orderNumber || null,
-        customerName: customersList.find(c => c.id === customerId)?.name || null,
-        amount,
-        method,
-        paymentDate: paymentDate ? new Date(paymentDate + 'T00:00:00') : serverTimestamp(),
-        notes,
-        updatedAt: new Date().toISOString()
-      };
-
-      if (paymentId) {
-        const paymentRef = doc(db, 'payments', paymentId);
-        transaction.update(paymentRef, paymentData);
-      } else {
-        paymentData.createdAt = new Date().toISOString();
-        const paymentRef = doc(collection(db, 'payments'));
-        transaction.set(paymentRef, paymentData);
-      }
-    });
-
-    showToast(paymentId ? 'تم تحديث الدفعة بنجاح' : 'تم تسجيل الدفعة بنجاح', 'success');
+    if (paymentId) {
+      // تعديل
+      await updateDoc(doc(db, 'payments', paymentId), paymentData);
+      showToast('تم تحديث الدفعة بنجاح', 'success');
+    } else {
+      // إضافة
+      paymentData.createdAt = new Date().toISOString();
+      await addDoc(collection(db, 'payments'), paymentData);
+      showToast('تم تسجيل الدفعة بنجاح', 'success');
+    }
     if (paymentModalInstance) paymentModalInstance.hide();
   } catch (error) {
     console.error('Error saving payment:', error);
-    let msg = 'حدث خطأ أثناء الحفظ';
-    if (error.message.includes('يتجاوز')) {
-      msg = error.message;
-    }
-    showToast(msg, 'error');
+    showToast('حدث خطأ أثناء الحفظ', 'error');
   } finally {
     saveBtn.disabled = false;
     saveBtn.innerHTML = '<i class="fas fa-save me-2"></i>حفظ';
@@ -543,7 +392,7 @@ document.getElementById('savePaymentBtn')?.addEventListener('click', async () =>
 });
 
 // ============================
-// 12. حذف دفعة (Transaction)
+// 12. حذف دفعة
 // ============================
 async function confirmDelete(id) {
   const payment = payments.find(p => p.id === id);
@@ -562,22 +411,7 @@ async function confirmDelete(id) {
 
   if (result.isConfirmed) {
     try {
-      await runTransaction(db, async (transaction) => {
-        const paymentRef = doc(db, 'payments', id);
-        transaction.delete(paymentRef);
-        const orderRef = doc(db, 'orders', payment.orderId);
-        const orderDoc = await transaction.get(orderRef);
-        if (orderDoc.exists()) {
-          const orderData = orderDoc.data();
-          const newPaid = (orderData.paid || 0) - payment.amount;
-          const balance = orderData.total - newPaid;
-          transaction.update(orderRef, {
-            paid: newPaid,
-            balance: balance,
-            updatedAt: new Date().toISOString()
-          });
-        }
-      });
+      await deleteDoc(doc(db, 'payments', id));
       showToast('تم حذف الدفعة بنجاح', 'success');
     } catch (error) {
       console.error('Error deleting payment:', error);
@@ -592,18 +426,7 @@ async function confirmDelete(id) {
 modalElement?.addEventListener('hidden.bs.modal', () => {
   document.getElementById('paymentForm').reset();
   document.getElementById('paymentId').value = '';
-  document.getElementById('orderId').value = '';
   document.getElementById('oldAmount').value = '';
-  const orderSelect = document.getElementById('orderSelect');
-  if (orderSelect) {
-    orderSelect.disabled = true;
-    orderSelect.innerHTML = '<option value="">اختر طلب...</option>';
-  }
-  // إزالة مستمع تغيير العميل لتجنب التراكم
-  const customerSelect = document.getElementById('customerSelect');
-  if (customerSelect) {
-    customerSelect.removeEventListener('change', handleCustomerChange);
-  }
 });
 
-console.log('✅ Payments page ready with fixed customer/order selection');
+console.log('✅ Payments page ready (without orders)');
