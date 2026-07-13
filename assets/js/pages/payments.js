@@ -74,9 +74,12 @@ async function loadCustomers() {
 }
 
 async function loadOrdersForCustomer(customerId) {
+  const orderSelect = document.getElementById('orderSelect');
   if (!customerId) {
-    document.getElementById('orderSelect').innerHTML = '<option value="">اختر طلب...</option>';
-    document.getElementById('orderSelect').disabled = true;
+    if (orderSelect) {
+      orderSelect.innerHTML = '<option value="">اختر طلب...</option>';
+      orderSelect.disabled = true;
+    }
     return;
   }
   try {
@@ -88,7 +91,7 @@ async function loadOrdersForCustomer(customerId) {
       remaining: (doc.data().total || 0) - (doc.data().paid || 0)
     }));
     populateOrderSelect();
-    document.getElementById('orderSelect').disabled = false;
+    if (orderSelect) orderSelect.disabled = false;
   } catch (error) {
     console.error('Error loading orders:', error);
     showToast('حدث خطأ في تحميل الطلبات', 'error');
@@ -283,12 +286,12 @@ function renderTable(data) {
   });
 
   tbody.innerHTML = html;
-  // ربط الـ Event Delegation (مرة واحدة فقط)
+  // ربط الـ Event Delegation
   setupTableActions();
 }
 
 // ============================
-// 7.1 Event Delegation للأزرار (الحل السحري)
+// 7.1 Event Delegation للأزرار (حل المشكلة)
 // ============================
 function setupTableActions() {
   const tbody = document.getElementById('paymentsTableBody');
@@ -341,24 +344,36 @@ document.getElementById('addPaymentBtn')?.addEventListener('click', () => {
   document.getElementById('oldAmount').value = '';
 
   // تفعيل Flatpickr
-  flatpickr('#paymentDate', {
-    locale: 'ar',
-    dateFormat: 'Y-m-d',
-    defaultDate: new Date().toISOString().slice(0,10)
-  });
+  if (typeof flatpickr !== 'undefined') {
+    flatpickr('#paymentDate', {
+      locale: 'ar',
+      dateFormat: 'Y-m-d',
+      defaultDate: new Date().toISOString().slice(0,10)
+    });
+  }
 
   populateCustomerSelect();
-  document.getElementById('orderSelect').disabled = true;
-  document.getElementById('orderSelect').innerHTML = '<option value="">اختر طلب...</option>';
+  const orderSelect = document.getElementById('orderSelect');
+  if (orderSelect) {
+    orderSelect.disabled = true;
+    orderSelect.innerHTML = '<option value="">اختر طلب...</option>';
+  }
 
   // مستمع لتغيير العميل
-  document.getElementById('customerSelect').addEventListener('change', function() {
-    const customerId = this.value;
-    loadOrdersForCustomer(customerId);
-  });
+  const customerSelect = document.getElementById('customerSelect');
+  if (customerSelect) {
+    // إزالة المستمع القديم لتجنب التكرار
+    customerSelect.removeEventListener('change', handleCustomerChange);
+    customerSelect.addEventListener('change', handleCustomerChange);
+  }
 
   if (paymentModalInstance) paymentModalInstance.show();
 });
+
+function handleCustomerChange(e) {
+  const customerId = e.target.value;
+  loadOrdersForCustomer(customerId);
+}
 
 // ============================
 // 10. فتح مودال التعديل
@@ -384,16 +399,19 @@ function openEditModal(id) {
   const customer = customersList.find(c => c.id === payment.customerId);
   if (customer) {
     document.getElementById('customerSelect').value = customer.id;
+    // تحميل الطلبات الخاصة بهذا العميل
     loadOrdersForCustomer(customer.id).then(() => {
       document.getElementById('orderSelect').value = payment.orderId || '';
     });
   }
 
-  flatpickr('#paymentDate', {
-    locale: 'ar',
-    dateFormat: 'Y-m-d',
-    defaultDate: payment.paymentDate || new Date()
-  });
+  if (typeof flatpickr !== 'undefined') {
+    flatpickr('#paymentDate', {
+      locale: 'ar',
+      dateFormat: 'Y-m-d',
+      defaultDate: payment.paymentDate || new Date()
+    });
+  }
 
   if (paymentModalInstance) paymentModalInstance.show();
 }
@@ -537,8 +555,16 @@ modalElement?.addEventListener('hidden.bs.modal', () => {
   document.getElementById('paymentId').value = '';
   document.getElementById('orderId').value = '';
   document.getElementById('oldAmount').value = '';
-  document.getElementById('orderSelect').disabled = true;
-  document.getElementById('orderSelect').innerHTML = '<option value="">اختر طلب...</option>';
+  const orderSelect = document.getElementById('orderSelect');
+  if (orderSelect) {
+    orderSelect.disabled = true;
+    orderSelect.innerHTML = '<option value="">اختر طلب...</option>';
+  }
+  // إزالة مستمع تغيير العميل لتجنب التراكم
+  const customerSelect = document.getElementById('customerSelect');
+  if (customerSelect) {
+    customerSelect.removeEventListener('change', handleCustomerChange);
+  }
 });
 
-console.log('✅ Payments page ready with fixed buttons');
+console.log('✅ Payments page ready with fixed buttons and customer selection');
