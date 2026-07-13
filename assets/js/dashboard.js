@@ -1,3 +1,4 @@
+// assets/js/dashboard.js
 import { onAuthStateChangedCallback, logoutUser } from './auth.js';
 
 // ============================
@@ -56,50 +57,52 @@ document.getElementById('sidebarToggle')?.addEventListener('click', () => {
 });
 
 // ============================
-// 5. الرسوم البيانية (Chart.js)
+// 5. الرسوم البيانية (Chart.js) - اختياري
 // ============================
 if (typeof Chart !== 'undefined') {
-  // مخطط دائري - توزيع الخدمات
-  const ctx1 = document.getElementById('servicesChart').getContext('2d');
-  new Chart(ctx1, {
-    type: 'doughnut',
-    data: {
-      labels: ['تصميم', 'تطوير', 'تسويق', 'استشارات'],
-      datasets: [{
-        data: [35, 40, 15, 10],
-        backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444'],
-        borderWidth: 0,
-      }]
-    },
-    options: {
-      responsive: true,
-      cutout: '65%',
-      plugins: { legend: { position: 'bottom' } }
-    }
-  });
-
-  // مخطط شريطي - الطلبات الشهرية
-  const ctx2 = document.getElementById('ordersChart').getContext('2d');
-  new Chart(ctx2, {
-    type: 'bar',
-    data: {
-      labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو'],
-      datasets: [{
-        label: 'الطلبات',
-        data: [65, 78, 82, 91, 74, 102],
-        backgroundColor: 'rgba(79, 70, 229, 0.7)',
-        borderRadius: 6,
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
-        x: { grid: { display: false } }
+  const ctx1 = document.getElementById('servicesChart')?.getContext('2d');
+  if (ctx1) {
+    new Chart(ctx1, {
+      type: 'doughnut',
+      data: {
+        labels: ['تصميم', 'تطوير', 'تسويق', 'استشارات'],
+        datasets: [{
+          data: [35, 40, 15, 10],
+          backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444'],
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        responsive: true,
+        cutout: '65%',
+        plugins: { legend: { position: 'bottom' } }
       }
-    }
-  });
-} else {
-  console.warn('Chart.js not loaded');
+    });
+  }
+
+  const ctx2 = document.getElementById('ordersChart')?.getContext('2d');
+  if (ctx2) {
+    new Chart(ctx2, {
+      type: 'bar',
+      data: {
+        labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو'],
+        datasets: [{
+          label: 'الطلبات',
+          data: [65, 78, 82, 91, 74, 102],
+          backgroundColor: 'rgba(79, 70, 229, 0.7)',
+          borderRadius: 6,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
 }
+
+console.log('✅ Dashboard ready');
