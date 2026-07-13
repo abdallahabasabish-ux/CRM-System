@@ -10,6 +10,7 @@ import {
   query,
   orderBy,
   getDocs,
+  runTransaction,
   serverTimestamp
 } from 'firebase/firestore';
 
@@ -323,9 +324,11 @@ function openEditModal(id) {
   document.getElementById('paymentDate').value = formatDate(payment.paymentDate);
   document.getElementById('paymentNotes').value = payment.notes || '';
 
+  // تعيين العميل المحدد
   populateCustomerSelect();
-  if (payment.customerId) {
-    document.getElementById('customerSelect').value = payment.customerId;
+  const customer = customersList.find(c => c.id === payment.customerId);
+  if (customer) {
+    document.getElementById('customerSelect').value = customer.id;
   }
 
   if (typeof flatpickr !== 'undefined') {
@@ -340,7 +343,7 @@ function openEditModal(id) {
 }
 
 // ============================
-// 11. حفظ البيانات (بدون Transaction لأن لا يوجد طلب)
+// 11. حفظ البيانات (Transaction)
 // ============================
 document.getElementById('savePaymentBtn')?.addEventListener('click', async () => {
   const customerId = document.getElementById('customerSelect').value;
@@ -362,29 +365,78 @@ document.getElementById('savePaymentBtn')?.addEventListener('click', async () =>
   saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ...';
 
   try {
-    const paymentData = {
-      customerId,
-      amount,
-      method,
-      paymentDate: paymentDate ? new Date(paymentDate + 'T00:00:00') : serverTimestamp(),
-      notes,
-      updatedAt: new Date().toISOString()
-    };
+    await runTransaction(db, async (transaction) => {
+      // 1. جلب بيانات العميل
+      const customerRef = doc(db, 'customers', customerId);
+      const customerDoc = await transaction.get(customerRef);
+      if (!customerDoc.exists()) {
+        throw new Error('العميل غير موجود');
+      }
+      const customerData = customerDoc.data();
 
-    if (paymentId) {
-      // تعديل
-      await updateDoc(doc(db, 'payments', paymentId), paymentData);
-      showToast('تم تحديث الدفعة بنجاح', 'success');
-    } else {
-      // إضافة
-      paymentData.createdAt = new Date().toISOString();
-      await addDoc(collection(db, 'payments'), paymentData);
-      showToast('تم تسجيل الدفعة بنجاح', 'success');
-    }
+      // 2. حساب الرصيد الجديد
+      let newTotalPaid = (customerData.totalPaid || 0);
+      if (paymentId) {
+        // تعديل: نطرح المبلغ القديم ونضيف الجديد
+        newTotalPaid = newTotalPaid - oldAmount + amount;
+      } else {
+        // إضافة: نزيد المبلغ
+        newTotalPaid = newTotalPaid + amount;
+      }
+      // المتبقي = إجمالي الطلبات - إجمالي المدفوع (نفترض أن إجمالي الطلبات محسوب في customerData.totalOrdersValue)
+      // لكننا نستخدم balance كحقل منفصل، لكننا نحتاج إلى تحديثه بناءً على إجمالي الطلبات.
+      // هنا نستخدم balance كحقل مخزن في العميل، وسنقوم بتحديثه بتقليل المبلغ المدفوع.
+      const currentBalance = customerData.balance || 0;
+      let newBalance = currentBalance;
+      if (paymentId) {
+        // عند التعديل، نضيف الفرق (old - new) للرصيد
+        newBalance = currentBalance + (oldAmount - amount);
+      } else {
+        newBalance = currentBalance - amount;
+      }
+
+      // التأكد من أن الرصيد لا يصبح سالباً (يمكنك إلغاء هذا الشرط إذا أردت)
+      // if (newBalance < 0) throw new Error('الرصيد لا يمكن أن يكون سالباً');
+
+      // 3. تحديث العميل
+      transaction.update(customerRef, {
+        totalPaid: newTotalPaid,
+        balance: newBalance,
+        updatedAt: new Date().toISOString()
+      });
+
+      // 4. حفظ الدفعة
+      const paymentData = {
+        customerId,
+        customerName: customerData.name || null,
+        amount,
+        method,
+        paymentDate: paymentDate ? new Date(paymentDate + 'T00:00:00') : serverTimestamp(),
+        notes,
+        updatedAt: new Date().toISOString()
+      };
+
+      if (paymentId) {
+        const paymentRef = doc(db, 'payments', paymentId);
+        transaction.update(paymentRef, paymentData);
+      } else {
+        paymentData.createdAt = new Date().toISOString();
+        const paymentRef = doc(collection(db, 'payments'));
+        transaction.set(paymentRef, paymentData);
+      }
+    });
+
+    showToast(paymentId ? 'تم تحديث الدفعة بنجاح' : 'تم تسجيل الدفعة بنجاح', 'success');
     if (paymentModalInstance) paymentModalInstance.hide();
   } catch (error) {
     console.error('Error saving payment:', error);
-    showToast('حدث خطأ أثناء الحفظ', 'error');
+    let msg = 'حدث خطأ أثناء الحفظ';
+    if (error.message.includes('غير موجود')) {
+      msg = error.message;
+    } else if (error.message.includes('سالباً')) {
+      msg = 'لا يمكن أن يصبح الرصيد سالباً';
+    }
+    showToast(msg, 'error');
   } finally {
     saveBtn.disabled = false;
     saveBtn.innerHTML = '<i class="fas fa-save me-2"></i>حفظ';
@@ -392,7 +444,7 @@ document.getElementById('savePaymentBtn')?.addEventListener('click', async () =>
 });
 
 // ============================
-// 12. حذف دفعة
+// 12. حذف دفعة (Transaction)
 // ============================
 async function confirmDelete(id) {
   const payment = payments.find(p => p.id === id);
@@ -411,7 +463,25 @@ async function confirmDelete(id) {
 
   if (result.isConfirmed) {
     try {
-      await deleteDoc(doc(db, 'payments', id));
+      await runTransaction(db, async (transaction) => {
+        // حذف الدفعة
+        const paymentRef = doc(db, 'payments', id);
+        transaction.delete(paymentRef);
+
+        // تحديث رصيد العميل
+        const customerRef = doc(db, 'customers', payment.customerId);
+        const customerDoc = await transaction.get(customerRef);
+        if (customerDoc.exists()) {
+          const data = customerDoc.data();
+          const newTotalPaid = (data.totalPaid || 0) - payment.amount;
+          const newBalance = (data.balance || 0) + payment.amount;
+          transaction.update(customerRef, {
+            totalPaid: newTotalPaid,
+            balance: newBalance,
+            updatedAt: new Date().toISOString()
+          });
+        }
+      });
       showToast('تم حذف الدفعة بنجاح', 'success');
     } catch (error) {
       console.error('Error deleting payment:', error);
@@ -429,4 +499,4 @@ modalElement?.addEventListener('hidden.bs.modal', () => {
   document.getElementById('oldAmount').value = '';
 });
 
-console.log('✅ Payments page ready (without orders)');
+console.log('✅ Payments page ready (customer-based payments)');
