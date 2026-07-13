@@ -318,7 +318,7 @@ document.getElementById('addPaymentBtn')?.addEventListener('click', () => {
       defaultDate: new Date().toISOString().slice(0, 10)
     });
   }
-
+  
   populateCustomerSelect();
   if (paymentModalInstance) paymentModalInstance.show();
 });
