@@ -10,9 +10,9 @@ import {
   Timestamp
 } from 'firebase/firestore';
 
-// ============================
-// متغيرات عامة
-// ============================
+// =============================================================
+// 1.  متغيرات عامة
+// =============================================================
 let customersCount = 0;
 let activeOrdersCount = 0;
 let completedOrdersCount = 0;
@@ -33,9 +33,9 @@ let treasuryTransfers = 0;
 let treasuryTxCount = 0;
 let treasuryTransactions = [];
 
-// ============================
-// دوال مساعدة
-// ============================
+// =============================================================
+// 2.  دوال مساعدة (مطابقة لتلك المستخدمة في التقارير)
+// =============================================================
 function formatCurrency(amount, currency = '$') {
   if (amount === undefined || amount === null) return `${currency}0.00`;
   return `${currency}${amount.toFixed(2)}`;
@@ -77,9 +77,9 @@ function showToast(message, type = 'success') {
   }
 }
 
-// ============================
-// 1. المصادقة والتهيئة
-// ============================
+// =============================================================
+// 3.  المصادقة والتهيئة
+// =============================================================
 onAuthStateChangedCallback(async (user) => {
   if (!user) {
     window.location.href = 'login.html';
@@ -99,29 +99,22 @@ onAuthStateChangedCallback(async (user) => {
       : user.email.charAt(0).toUpperCase();
   }
 
-  // تهيئة الوضع المظلم والقائمة الجانبية
   initDarkMode();
   initSidebar();
 
-  // تسجيل الخروج
   document.getElementById('logoutBtn')?.addEventListener('click', async () => {
     await logoutUser();
     window.location.href = 'login.html';
   });
 
-  // تحميل أسماء الخدمات
   await loadServices();
-
-  // تحميل البيانات
   await loadDashboardData();
-
-  // بدء الاستماع للتحديثات الفورية
   listenToRealtimeUpdates();
 });
 
-// ============================
-// 2. الوضع المظلم والقائمة الجانبية
-// ============================
+// =============================================================
+// 4.  الوضع المظلم والقائمة الجانبية
+// =============================================================
 function initDarkMode() {
   const themeToggle = document.getElementById('themeToggle');
   const htmlElement = document.documentElement;
@@ -171,9 +164,9 @@ function initSidebar() {
   }
 }
 
-// ============================
-// 3. تحميل أسماء الخدمات
-// ============================
+// =============================================================
+// 5.  تحميل أسماء الخدمات
+// =============================================================
 async function loadServices() {
   try {
     const servicesSnap = await getDocs(collection(db, 'services'));
@@ -186,9 +179,9 @@ async function loadServices() {
   }
 }
 
-// ============================
-// 4. تحميل البيانات الأولية
-// ============================
+// =============================================================
+// 6.  تحميل البيانات الأولية
+// =============================================================
 async function loadDashboardData() {
   try {
     // العملاء
@@ -250,9 +243,9 @@ async function loadDashboardData() {
   }
 }
 
-// ============================
-// 5. الاستماع للتحديثات الفورية
-// ============================
+// =============================================================
+// 7.  الاستماع للتحديثات الفورية
+// =============================================================
 function listenToRealtimeUpdates() {
   // العملاء
   onSnapshot(collection(db, 'customers'), (snapshot) => {
@@ -276,7 +269,6 @@ function listenToRealtimeUpdates() {
     paymentsCount = snapshot.size;
     updateStats();
 
-    // تحديث جدول آخر الدفعات
     const sorted = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
@@ -289,7 +281,6 @@ function listenToRealtimeUpdates() {
     recentPayments = sorted;
     updateRecentPayments();
 
-    // تحديث مخطط المدفوعات
     updatePaymentsChart();
   });
 
@@ -319,9 +310,9 @@ function listenToRealtimeUpdates() {
   });
 }
 
-// ============================
-// 6. تحديث البطاقات الإحصائية
-// ============================
+// =============================================================
+// 8.  تحديث البطاقات الإحصائية الرئيسية
+// =============================================================
 function updateStats() {
   document.getElementById('statCustomers').textContent = customersCount;
   document.getElementById('statActiveOrders').textContent = activeOrdersCount;
@@ -331,19 +322,21 @@ function updateStats() {
   document.getElementById('statPaymentsCount').textContent = paymentsCount;
 }
 
-// ============================
-// 7. تحديث بطاقات الخزينة
-// ============================
+// =============================================================
+// 9.  تحديث بطاقات الخزينة المصغرة
+// =============================================================
 function updateTreasuryStats() {
-  document.getElementById('treasuryBalance').textContent = formatCurrency(treasuryBalance);
-  document.getElementById('treasuryDeposits').textContent = formatCurrency(treasuryDeposits);
-  document.getElementById('treasuryWithdrawals').textContent = formatCurrency(treasuryWithdrawals);
-  document.getElementById('treasuryTxCount').textContent = treasuryTxCount;
+  document.getElementById('treasuryHeaderBalance').innerHTML =
+    `<small>الرصيد الحالي</small> ${formatCurrency(treasuryBalance)}`;
+  document.getElementById('miniTotalDeposits').textContent = formatCurrency(treasuryDeposits);
+  document.getElementById('miniTotalWithdrawals').textContent = formatCurrency(treasuryWithdrawals);
+  document.getElementById('miniTotalTransfers').textContent = formatCurrency(treasuryTransfers);
+  document.getElementById('miniTxCount').textContent = treasuryTxCount;
 }
 
-// ============================
-// 8. تحديث جدول آخر الدفعات
-// ============================
+// =============================================================
+// 10. تحديث جدول آخر المدفوعات
+// =============================================================
 function updateRecentPayments() {
   const tbody = document.getElementById('recentPaymentsBody');
   if (!tbody) return;
@@ -370,9 +363,9 @@ function updateRecentPayments() {
   tbody.innerHTML = html;
 }
 
-// ============================
-// 9. تحديث جدول آخر العملاء
-// ============================
+// =============================================================
+// 11. تحديث جدول آخر العملاء
+// =============================================================
 function updateRecentCustomers() {
   const tbody = document.getElementById('recentCustomers');
   if (!tbody) return;
@@ -397,13 +390,13 @@ function updateRecentCustomers() {
   tbody.innerHTML = html;
 }
 
-// ============================
-// 10. تحديث الرسوم البيانية
-// ============================
+// =============================================================
+// 12. الرسوم البيانية (مطابقة للتقارير)
+// =============================================================
 function updateCharts(ordersData) {
   const colors = ['#ff6600', '#0d6efd', '#28a745', '#8b5cf6', '#ffc107', '#dc3545'];
 
-  // ===== 10.1 مخطط توزيع الخدمات =====
+  // 12.1 توزيع الخدمات
   const serviceCount = {};
   ordersData.forEach(order => {
     const sid = order.serviceId;
@@ -433,7 +426,7 @@ function updateCharts(ordersData) {
     });
   }
 
-  // ===== 10.2 مخطط الطلبات الشهرية =====
+  // 12.2 الطلبات الشهرية
   const monthlyOrders = {};
   const now = new Date();
   for (let i = 5; i >= 0; i--) {
@@ -477,16 +470,16 @@ function updateCharts(ordersData) {
     });
   }
 
-  // ===== 10.3 مخطط المدفوعات =====
+  // 12.3 مخطط المدفوعات
   updatePaymentsChart();
 
-  // ===== 10.4 مخطط الخزينة =====
+  // 12.4 مخطط الخزينة
   updateTreasuryChart();
 }
 
-// ============================
-// 10.3 تحديث مخطط المدفوعات
-// ============================
+// =============================================================
+// 12.3 تحديث مخطط المدفوعات
+// =============================================================
 async function updatePaymentsChart() {
   const monthlyPayments = {};
   const now = new Date();
@@ -545,9 +538,9 @@ async function updatePaymentsChart() {
   }
 }
 
-// ============================
-// 10.4 تحديث مخطط الخزينة
-// ============================
+// =============================================================
+// 12.4 تحديث مخطط الخزينة
+// =============================================================
 async function updateTreasuryChart() {
   const monthlyTreasury = {};
   const now = new Date();
@@ -616,4 +609,4 @@ async function updateTreasuryChart() {
   }
 }
 
-console.log('✅ Dashboard ready with real data and treasury');
+console.log('✅ Dashboard ready with professional design and treasury integration');
