@@ -7,12 +7,12 @@
   
   <!-- Bootstrap 5 RTL -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet" />
-  <!-- Font Awesome (للأيقونات الإضافية في المحتوى) -->
+  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   
-  <!-- استيراد ملف الأنماط الجديد -->
+  <!-- الأنماط المخصصة -->
   <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
@@ -23,7 +23,7 @@
   <div id="sidebar-overlay" onclick="document.getElementById('sidebar').classList.remove('active')"></div>
 
   <!-- ========================================================= -->
-  <!-- القائمة الجانبية (الجديدة) -->
+  <!-- القائمة الجانبية -->
   <!-- ========================================================= -->
   <aside id="sidebar">
     <div class="sidebar-header">
@@ -97,11 +97,6 @@
         <h1 class="page-title">لوحة التحكم</h1>
       </div>
       <div class="topbar-right">
-        <button class="search-trigger" id="searchToggle">
-          <i class="fas fa-search"></i>
-          <span>بحث</span>
-          <span class="shortcut">Ctrl+K</span>
-        </button>
         <button class="icon-btn theme-toggle" id="themeToggle" title="تبديل الوضع المظلم">
           <i class="fas fa-moon"></i>
         </button>
@@ -117,19 +112,31 @@
       <!-- بطاقات الإحصائيات -->
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="info"><h6>إجمالي العملاء</h6><h3 id="statCustomers">1,284</h3></div>
+          <div class="info">
+            <h6>إجمالي العملاء</h6>
+            <h3 id="statCustomers">1,284</h3>
+          </div>
           <div class="icon blue"><i class="fas fa-users"></i></div>
         </div>
         <div class="stat-card">
-          <div class="info"><h6>الطلبات الجارية</h6><h3 id="statActiveOrders">342</h3></div>
+          <div class="info">
+            <h6>الطلبات الجارية</h6>
+            <h3 id="statActiveOrders">342</h3>
+          </div>
           <div class="icon yellow"><i class="fas fa-spinner"></i></div>
         </div>
         <div class="stat-card">
-          <div class="info"><h6>الأرباح الصافية</h6><h3 id="statRevenue">$45,672</h3></div>
+          <div class="info">
+            <h6>الأرباح الصافية</h6>
+            <h3 id="statRevenue">$45,672</h3>
+          </div>
           <div class="icon green"><i class="fas fa-dollar-sign"></i></div>
         </div>
         <div class="stat-card">
-          <div class="info"><h6>الطلبات المكتملة</h6><h3 id="statCompleted">1,023</h3></div>
+          <div class="info">
+            <h6>الطلبات المكتملة</h6>
+            <h3 id="statCompleted">1,023</h3>
+          </div>
           <div class="icon purple"><i class="fas fa-check-circle"></i></div>
         </div>
       </div>
@@ -146,14 +153,16 @@
         </div>
       </div>
 
-      <!-- جدول آخر العملاء -->
+      <!-- جدول آخر العملاء (مثال) -->
       <div class="table-wrapper">
         <div class="table-header">
           <h5><i class="fas fa-user-plus me-2"></i>آخر العملاء</h5>
         </div>
         <div class="table-responsive">
           <table class="table">
-            <thead><tr><th>#</th><th>الاسم</th><th>الهاتف</th><th>المدفوع</th></tr></thead>
+            <thead>
+              <tr><th>#</th><th>الاسم</th><th>الهاتف</th><th>المدفوع</th></tr>
+            </thead>
             <tbody id="recentCustomers">
               <tr><td>1</td><td>أحمد محمد</td><td>+966 55 123 4567</td><td>$2,500</td></tr>
               <tr><td>2</td><td>سارة علي</td><td>+966 55 765 4321</td><td>$1,800</td></tr>
@@ -164,16 +173,6 @@
       </div>
 
     </section>
-  </div>
-
-  <!-- ========================================================= -->
-  <!-- نافذة البحث Ctrl+K (مثال) -->
-  <!-- ========================================================= -->
-  <div id="search-modal" style="display:none;">
-    <div class="search-box">
-      <input type="text" class="search-input" placeholder="ابحث عن أي شيء..." id="globalSearch" />
-      <div class="search-results"></div>
-    </div>
   </div>
 
   <!-- ========================================================= -->
