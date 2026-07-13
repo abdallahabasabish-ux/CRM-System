@@ -16,17 +16,39 @@
   <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <!-- SheetJS -->
+  <!-- SheetJS (Excel) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- jsPDF + html2canvas -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-  <!-- الأنماط المخصصة -->
   <link rel="stylesheet" href="assets/css/style.css" />
 
   <style>
-    /* ===== تحسينات خاصة بتصميم الخزينة في التقارير ===== */
+    .filter-btn.active {
+      background-color: #ff6600 !important;
+      color: #fff !important;
+      border-color: #ff6600 !important;
+    }
+    .stat-card .stat-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+    .stat-card .stat-icon.blue { background: rgba(13,110,253,0.12); color: #0d6efd; }
+    .stat-card .stat-icon.purple { background: rgba(139,92,246,0.12); color: #8b5cf6; }
+    .stat-card .stat-icon.green { background: rgba(40,167,69,0.12); color: #28a745; }
+    .stat-card .stat-icon.orange { background: rgba(255,102,0,0.12); color: #ff6600; }
+    .report-total-row {
+      background: var(--bg-input);
+      border-top: 2px solid var(--color-primary);
+      font-weight: 700;
+    }
+    /* قسم الخزينة */
     .treasury-report-header {
       background: linear-gradient(135deg, var(--color-primary), #1a1a1a);
       color: #fff;
@@ -38,24 +60,13 @@
       align-items: center;
       flex-wrap: wrap;
       gap: 16px;
-      border: 1px solid rgba(255,255,255,0.08);
-      box-shadow: var(--shadow-md);
-    }
-    .treasury-report-header h4 {
-      margin: 0;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 12px;
     }
     .treasury-report-header .badge-balance {
       background: rgba(255,255,255,0.15);
       padding: 8px 20px;
-      border-radius: var(--radius-full);
+      border-radius: 50px;
       font-size: 22px;
       font-weight: 700;
-      backdrop-filter: blur(4px);
-      border: 1px solid rgba(255,255,255,0.1);
     }
     .treasury-report-header .badge-balance small {
       font-size: 14px;
@@ -63,7 +74,6 @@
       opacity: 0.8;
       margin-left: 8px;
     }
-
     .treasury-stats-grid-mini {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -76,12 +86,6 @@
       border-radius: var(--radius-sm);
       padding: 12px 16px;
       text-align: center;
-      transition: var(--transition);
-    }
-    .treasury-stat-mini:hover {
-      border-color: var(--color-primary);
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-sm);
     }
     .treasury-stat-mini .number {
       font-size: 22px;
@@ -93,46 +97,18 @@
       color: var(--text-muted);
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.3px;
     }
-    .treasury-stat-mini .icon {
-      font-size: 18px;
-      display: block;
-      margin-bottom: 2px;
-    }
+    .treasury-stat-mini .icon { font-size: 18px; display: block; margin-bottom: 2px; }
     .icon-deposit { color: #28a745; }
     .icon-withdraw { color: #dc3545; }
     .icon-transfer { color: var(--color-primary); }
     .icon-balance { color: #ffc107; }
-
-    /* تنسيق صفوف الخزينة في الجدول */
     .tx-deposit-row .tx-amount { color: #28a745; font-weight: 700; }
     .tx-withdraw-row .tx-amount { color: #dc3545; font-weight: 700; }
     .tx-transfer-row .tx-amount { color: var(--color-primary); font-weight: 700; }
-
-    .badge-status {
-      font-size: 11px;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-weight: 600;
-    }
-    
-    .filter-btn.active {
-      background-color: #ff6600 !important;
-      color: #fff !important;
-      border-color: #ff6600 !important;
-      box-shadow: 0 4px 12px rgba(255,102,0,0.3);
-    }
-
+    .badge-status { font-size: 11px; padding: 4px 12px; border-radius: 20px; font-weight: 600; }
     @media (max-width: 768px) {
-      .treasury-report-header {
-        flex-direction: column;
-        align-items: stretch;
-        text-align: center;
-      }
-      .treasury-report-header .badge-balance {
-        font-size: 18px;
-      }
+      .treasury-report-header { flex-direction: column; align-items: stretch; text-align: center; }
     }
   </style>
 </head>
@@ -141,10 +117,10 @@
   <!-- ===== الطبقة المظللة ===== -->
   <div id="sidebar-overlay" onclick="document.getElementById('sidebar').classList.remove('active')"></div>
 
-  <!-- ===== القائمة الجانبية (نفس المحتوى السابق) ===== -->
+  <!-- ===== القائمة الجانبية ===== -->
   <aside id="sidebar">
     <div class="sidebar-header">
-      <div class="logo-icon">A</div>
+      <div class="logo-icon">ن</div>
       <div class="brand-text">نظام <span>الإدارة</span></div>
     </div>
     <ul class="sidebar-menu">
@@ -187,27 +163,27 @@
 
     <section id="workspace">
 
-      <!-- ===== 1. البطاقات الرئيسية (Top Stats) ===== -->
+      <!-- بطاقات الإحصائيات -->
       <div class="stats-grid mb-4" id="statsCards">
         <div class="stat-card">
-          <div class="info"><h6>إجمالي العملاء</h6><h3 id="statCustomers">0</h3><span class="trend neutral"><i class="fas fa-users"></i> نشط</span></div>
+          <div class="info"><h6>إجمالي العملاء</h6><h3 id="statCustomers">0</h3></div>
           <div class="stat-icon blue"><i class="fas fa-users"></i></div>
         </div>
         <div class="stat-card">
-          <div class="info"><h6>إجمالي الطلبات</h6><h3 id="statOrders">0</h3><span class="trend up"><i class="fas fa-arrow-up"></i> +%</span></div>
+          <div class="info"><h6>إجمالي الطلبات</h6><h3 id="statOrders">0</h3></div>
           <div class="stat-icon purple"><i class="fas fa-clipboard-list"></i></div>
         </div>
         <div class="stat-card">
-          <div class="info"><h6>الإيرادات</h6><h3 id="statRevenue">$0</h3><span class="trend up"><i class="fas fa-arrow-up"></i> نمو</span></div>
+          <div class="info"><h6>الإيرادات</h6><h3 id="statRevenue">$0</h3></div>
           <div class="stat-icon green"><i class="fas fa-dollar-sign"></i></div>
         </div>
         <div class="stat-card">
-          <div class="info"><h6>المدفوعات</h6><h3 id="statPayments">$0</h3><span class="trend neutral"><i class="fas fa-credit-card"></i> محدث</span></div>
+          <div class="info"><h6>المدفوعات</h6><h3 id="statPayments">$0</h3></div>
           <div class="stat-icon orange"><i class="fas fa-credit-card"></i></div>
         </div>
       </div>
 
-      <!-- ===== 2. الفلاتر الزمنية ===== -->
+      <!-- الفلاتر -->
       <div class="d-flex flex-wrap gap-2 mb-4 align-items-center">
         <span class="fw-bold me-2">الفترة:</span>
         <button class="btn btn-outline-primary btn-sm filter-btn active" data-filter="7">آخر 7 أيام</button>
@@ -222,7 +198,7 @@
         </div>
       </div>
 
-      <!-- ===== 3. الرسوم البيانية ===== -->
+      <!-- الرسوم البيانية -->
       <div class="charts-grid mb-4">
         <div class="chart-card"><h5>توزيع الطلبات حسب الحالة</h5><canvas id="ordersStatusChart"></canvas></div>
         <div class="chart-card"><h5>الإيرادات الشهرية</h5><canvas id="monthlyRevenueChart"></canvas></div>
@@ -230,7 +206,7 @@
         <div class="chart-card"><h5>أداء الموظفين</h5><canvas id="employeePerformanceChart"></canvas></div>
       </div>
 
-      <!-- ===== 4. التقارير الجدولية (مع تركيز على الخزينة) ===== -->
+      <!-- التقارير الجدولية -->
       <div class="table-wrapper">
         <div class="table-header">
           <ul class="nav nav-tabs card-header-tabs" id="reportTabs" role="tablist">
@@ -238,54 +214,78 @@
             <li class="nav-item"><button class="nav-link" id="customers-tab" data-bs-toggle="tab" data-bs-target="#customersReport" type="button" role="tab">العملاء</button></li>
             <li class="nav-item"><button class="nav-link" id="employees-tab" data-bs-toggle="tab" data-bs-target="#employeesReport" type="button" role="tab">الموظفون</button></li>
             <li class="nav-item"><button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#paymentsReport" type="button" role="tab">المدفوعات</button></li>
-            <!-- 👇 تبويب الخزينة المميز باللون البرتقالي -->
-            <li class="nav-item"><button class="nav-link" id="treasury-tab" data-bs-toggle="tab" data-bs-target="#treasuryReport" type="button" role="tab" style="color: var(--color-primary); font-weight: 700;"><i class="fas fa-wallet"></i> الخزينة</button></li>
+            <li class="nav-item"><button class="nav-link" id="treasury-tab" data-bs-toggle="tab" data-bs-target="#treasuryReport" type="button" role="tab" style="color:var(--color-primary);font-weight:700;"><i class="fas fa-wallet"></i> الخزينة</button></li>
           </ul>
           <div class="d-flex gap-2">
-            <button class="btn btn-sm btn-success" id="exportExcelBtn"><i class="fas fa-file-excel me-1"></i>Excel</button>
-            <button class="btn btn-sm btn-danger" id="exportPdfBtn"><i class="fas fa-file-pdf me-1"></i>PDF</button>
-            <button class="btn btn-sm btn-secondary" id="printBtn"><i class="fas fa-print me-1"></i>طباعة</button>
+            <button class="btn btn-sm btn-success" id="exportExcelBtn"><i class="fas fa-file-excel"></i> Excel</button>
+            <button class="btn btn-sm btn-danger" id="exportPdfBtn"><i class="fas fa-file-pdf"></i> PDF</button>
+            <button class="btn btn-sm btn-secondary" id="printBtn"><i class="fas fa-print"></i> طباعة</button>
           </div>
         </div>
         <div class="p-3">
           <div class="tab-content" id="reportTabsContent">
-            
-            <!-- باقي التقارير (مختصرة) -->
-            <div class="tab-pane fade show active" id="ordersReport" role="tabpanel"><div class="table-responsive" id="ordersReportTable"><table class="table"><thead><tr><th># الطلب</th><th>العميل</th><th>الخدمة</th><th>الحالة</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th></tr></thead><tbody id="ordersReportBody"></tbody></table></div></div>
-            <div class="tab-pane fade" id="customersReport" role="tabpanel"><div class="table-responsive" id="customersReportTable"><table class="table"><thead><tr><th>العميل</th><th>الهاتف</th><th>الطلبات</th><th>المدفوع</th><th>المتبقي</th></tr></thead><tbody id="customersReportBody"></tbody></table></div></div>
-            <div class="tab-pane fade" id="employeesReport" role="tabpanel"><div class="table-responsive" id="employeesReportTable"><table class="table"><thead><tr><th>الموظف</th><th>الوظيفة</th><th>الطلبات</th><th>الإنجاز</th><th>العمولة</th></tr></thead><tbody id="employeesReportBody"></tbody></table></div></div>
-            <div class="tab-pane fade" id="paymentsReport" role="tabpanel"><div class="table-responsive" id="paymentsReportTable"><table class="table"><thead><tr><th>العميل</th><th>المبلغ</th><th>الطريقة</th><th>التاريخ</th></tr></thead><tbody id="paymentsReportBody"></tbody></table></div></div>
 
-            <!-- ===== 🎨 تقرير الخزينة (بتصميم مميز) ===== -->
-            <div class="tab-pane fade" id="treasuryReport" role="tabpanel">
-              
-              <!-- Header مميز للخزينة -->
-              <div class="treasury-report-header">
-                <div>
-                  <h4><i class="fas fa-wallet" style="color: #ff6600;"></i> تقرير الخزينة</h4>
-                  <span style="opacity:0.7; font-size:14px;">إجمالي حركة الأموال</span>
-                </div>
-                <div class="badge-balance" id="treasuryHeaderBalance">
-                  <small>الرصيد الحالي</small> $0.00
-                </div>
+            <!-- الطلبات -->
+            <div class="tab-pane fade show active" id="ordersReport" role="tabpanel">
+              <div class="table-responsive">
+                <table class="table">
+                  <thead><tr><th># الطلب</th><th>العميل</th><th>الخدمة</th><th>الحالة</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th></tr></thead>
+                  <tbody id="ordersReportBody"></tbody>
+                </table>
               </div>
+            </div>
 
-              <!-- بطاقات إحصائيات الخزينة المصغرة -->
-              <div class="treasury-stats-grid-mini" id="treasuryMiniStats">
+            <!-- العملاء -->
+            <div class="tab-pane fade" id="customersReport" role="tabpanel">
+              <div class="table-responsive">
+                <table class="table">
+                  <thead><tr><th>العميل</th><th>الهاتف</th><th>الطلبات</th><th>المدفوع</th><th>المتبقي</th></tr></thead>
+                  <tbody id="customersReportBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- الموظفون -->
+            <div class="tab-pane fade" id="employeesReport" role="tabpanel">
+              <div class="table-responsive">
+                <table class="table">
+                  <thead><tr><th>الموظف</th><th>الوظيفة</th><th>الطلبات</th><th>الإنجاز</th><th>العمولة</th></tr></thead>
+                  <tbody id="employeesReportBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- المدفوعات -->
+            <div class="tab-pane fade" id="paymentsReport" role="tabpanel">
+              <div class="table-responsive">
+                <table class="table">
+                  <thead><tr><th>العميل</th><th>المبلغ</th><th>الطريقة</th><th>التاريخ</th></tr></thead>
+                  <tbody id="paymentsReportBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- الخزينة -->
+            <div class="tab-pane fade" id="treasuryReport" role="tabpanel">
+              <div class="treasury-report-header">
+                <div><h4><i class="fas fa-wallet" style="color:#ff6600;"></i> تقرير الخزينة</h4></div>
+                <div class="badge-balance" id="treasuryHeaderBalance"><small>الرصيد الحالي</small> $0.00</div>
+              </div>
+              <div class="treasury-stats-grid-mini">
                 <div class="treasury-stat-mini">
                   <span class="icon icon-deposit"><i class="fas fa-arrow-down"></i></span>
                   <div class="number" id="miniTotalDeposits">$0.00</div>
-                  <div class="label">إجمالي الإيداعات</div>
+                  <div class="label">الإيداعات</div>
                 </div>
                 <div class="treasury-stat-mini">
                   <span class="icon icon-withdraw"><i class="fas fa-arrow-up"></i></span>
                   <div class="number" id="miniTotalWithdrawals">$0.00</div>
-                  <div class="label">إجمالي السحوبات</div>
+                  <div class="label">السحوبات</div>
                 </div>
                 <div class="treasury-stat-mini">
                   <span class="icon icon-transfer"><i class="fas fa-exchange-alt"></i></span>
                   <div class="number" id="miniTotalTransfers">$0.00</div>
-                  <div class="label">إجمالي التحويلات</div>
+                  <div class="label">التحويلات</div>
                 </div>
                 <div class="treasury-stat-mini">
                   <span class="icon icon-balance"><i class="fas fa-coins"></i></span>
@@ -293,22 +293,10 @@
                   <div class="label">عدد المعاملات</div>
                 </div>
               </div>
-
-              <!-- جدول المعاملات -->
-              <div class="table-responsive" id="treasuryReportTable">
+              <div class="table-responsive">
                 <table class="table">
-                  <thead>
-                    <tr>
-                      <th>التاريخ</th>
-                      <th>النوع</th>
-                      <th>المبلغ</th>
-                      <th>المصدر / الجهة</th>
-                      <th>الملاحظات</th>
-                    </tr>
-                  </thead>
-                  <tbody id="treasuryReportBody">
-                    <tr><td colspan="5" class="text-center text-muted">جاري تحميل بيانات الخزينة...</td></tr>
-                  </tbody>
+                  <thead><tr><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>المصدر</th><th>الملاحظات</th></tr></thead>
+                  <tbody id="treasuryReportBody"></tbody>
                 </table>
               </div>
             </div>
