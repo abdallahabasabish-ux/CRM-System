@@ -755,4 +755,63 @@ ul {
     padding: 8px 12px;
     font-size: 13px;
   }
+/* =========================================================
+   أنماط صفحة تسجيل الدخول
+   ========================================================= */
+.login-page {
+  background: var(--bg-body);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  margin: 0;
+  padding: 20px;
+  font-family: var(--font-family);
+}
+
+.login-card {
+  max-width: 440px;
+  width: 100%;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  padding: 40px 32px;
+  transition: var(--transition);
+}
+
+.login-card .brand {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.login-card .brand .logo-icon {
+  width: 64px;
+  height: 64px;
+  background: var(--color-primary);
+  border-radius: var(--radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 12px;
+}
+
+.login-card .brand h2 {
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  font-size: 24px;
+}
+
+.login-card .brand p {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.login-card .nav-tabs .nav
+   
 }
