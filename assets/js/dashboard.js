@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore';
 
 // =============================================================
-// 1.  متغيرات عامة
+// 1.  متغيرات عامة (مع قيم افتراضية آمنة)
 // =============================================================
 let customersCount = 0;
 let activeOrdersCount = 0;
@@ -25,7 +25,7 @@ let servicesMap = {};
 let chartInstances = {};
 let allOrders = [];
 
-// متغيرات الخزينة
+// ===== الخزينة =====
 let treasuryBalance = 0;
 let treasuryDeposits = 0;
 let treasuryWithdrawals = 0;
@@ -34,11 +34,11 @@ let treasuryTxCount = 0;
 let treasuryTransactions = [];
 
 // =============================================================
-// 2.  دوال مساعدة (آمنة)
+// 2.  دوال مساعدة (آمنة تماماً)
 // =============================================================
 function formatCurrency(amount, currency = '$') {
   if (amount === undefined || amount === null) return `${currency}0.00`;
-  return `${currency}${amount.toFixed(2)}`;
+  return `${currency}${Math.abs(amount).toFixed(2)}`;
 }
 
 function safeDate(date) {
@@ -157,23 +157,23 @@ async function loadDashboardData() {
   try {
     console.log('📊 بدء تحميل بيانات لوحة التحكم...');
 
-    // العملاء
+    // ===== العملاء =====
     const customersSnap = await getDocs(collection(db, 'customers'));
     customersCount = customersSnap.size;
 
-    // الطلبات
+    // ===== الطلبات =====
     const ordersSnap = await getDocs(collection(db, 'orders'));
     allOrders = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     activeOrdersCount = allOrders.filter(o => o.status === 'قيد التنفيذ').length;
     completedOrdersCount = allOrders.filter(o => o.status === 'مكتمل').length;
     totalRevenue = allOrders.reduce((sum, o) => sum + (o.total || 0), 0);
 
-    // المدفوعات
+    // ===== المدفوعات =====
     const paymentsSnap = await getDocs(collection(db, 'payments'));
     totalPayments = paymentsSnap.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
     paymentsCount = paymentsSnap.size;
 
-    // آخر 5 دفعات
+    // ===== آخر 5 دفعات =====
     const paymentsQuery = query(collection(db, 'payments'), orderBy('paymentDate', 'desc'), limit(5));
     const recentPaymentsSnap = await getDocs(paymentsQuery);
     recentPayments = recentPaymentsSnap.docs.map(doc => ({
@@ -182,7 +182,7 @@ async function loadDashboardData() {
       paymentDate: safeDate(doc.data().paymentDate)
     }));
 
-    // آخر 5 عملاء
+    // ===== آخر 5 عملاء =====
     const q = query(collection(db, 'customers'), orderBy('createdAt', 'desc'), limit(5));
     const recentSnap = await getDocs(q);
     recentCustomers = recentSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -204,8 +204,7 @@ async function loadDashboardData() {
       treasuryBalance = treasuryDeposits - treasuryWithdrawals + treasuryTransfers;
       treasuryTxCount = treasuryTransactions.length;
     } catch (treasuryError) {
-      console.warn('⚠️ Treasury collection not found or empty:', treasuryError);
-      // تعيين قيم افتراضية
+      console.warn('⚠️ Treasury collection not found or empty, using defaults.');
       treasuryTransactions = [];
       treasuryDeposits = 0;
       treasuryWithdrawals = 0;
@@ -214,7 +213,7 @@ async function loadDashboardData() {
       treasuryTxCount = 0;
     }
 
-    // تحديث واجهة المستخدم
+    // ===== تحديث واجهة المستخدم =====
     updateStats();
     updateTreasuryStats();
     updateRecentPayments();
@@ -229,16 +228,16 @@ async function loadDashboardData() {
 }
 
 // =============================================================
-// 6.  الاستماع للتحديثات الفورية (مع معالجة الأخطاء)
+// 6.  الاستماع للتحديثات الفورية
 // =============================================================
 function listenToRealtimeUpdates() {
-  // العملاء
+  // ===== العملاء =====
   onSnapshot(collection(db, 'customers'), (snapshot) => {
     customersCount = snapshot.size;
     updateStats();
   }, (error) => console.warn('⚠️ Customers listener error:', error));
 
-  // الطلبات
+  // ===== الطلبات =====
   onSnapshot(collection(db, 'orders'), (snapshot) => {
     allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     activeOrdersCount = allOrders.filter(o => o.status === 'قيد التنفيذ').length;
@@ -248,12 +247,13 @@ function listenToRealtimeUpdates() {
     updateCharts(allOrders);
   }, (error) => console.warn('⚠️ Orders listener error:', error));
 
-  // المدفوعات
+  // ===== المدفوعات =====
   onSnapshot(collection(db, 'payments'), (snapshot) => {
     totalPayments = snapshot.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
     paymentsCount = snapshot.size;
     updateStats();
 
+    // تحديث جدول آخر الدفعات
     const sorted = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
@@ -268,7 +268,7 @@ function listenToRealtimeUpdates() {
     updatePaymentsChart();
   }, (error) => console.warn('⚠️ Payments listener error:', error));
 
-  // الخزينة (مع معالجة الأخطاء)
+  // ===== الخزينة (مع معالجة الأخطاء) =====
   try {
     onSnapshot(collection(db, 'treasury'), (snapshot) => {
       treasuryTransactions = snapshot.docs.map(doc => ({
@@ -288,13 +288,12 @@ function listenToRealtimeUpdates() {
       updateTreasuryChart();
     }, (error) => {
       console.warn('⚠️ Treasury listener error (maybe collection missing):', error);
-      // لا نعرض رسالة للمستخدم لأنها قد تكون مجموعة غير موجودة
     });
   } catch (e) {
     console.warn('⚠️ Treasury listener setup error:', e);
   }
 
-  // آخر العملاء
+  // ===== آخر العملاء =====
   onSnapshot(query(collection(db, 'customers'), orderBy('createdAt', 'desc'), limit(5)), (snapshot) => {
     recentCustomers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     updateRecentCustomers();
@@ -302,7 +301,7 @@ function listenToRealtimeUpdates() {
 }
 
 // =============================================================
-// 7.  تحديث البطاقات الإحصائية (مع التحقق من وجود العناصر)
+// 7.  تحديث البطاقات الإحصائية الرئيسية
 // =============================================================
 function updateStats() {
   const el = (id) => document.getElementById(id);
@@ -320,7 +319,8 @@ function updateStats() {
 function updateTreasuryStats() {
   const el = (id) => document.getElementById(id);
   if (el('treasuryHeaderBalance')) {
-    el('treasuryHeaderBalance').innerHTML = `<small>الرصيد الحالي</small> ${formatCurrency(treasuryBalance)}`;
+    el('treasuryHeaderBalance').innerHTML =
+      `<small>الرصيد الحالي</small> ${formatCurrency(treasuryBalance)}`;
   }
   if (el('miniTotalDeposits')) el('miniTotalDeposits').textContent = formatCurrency(treasuryDeposits);
   if (el('miniTotalWithdrawals')) el('miniTotalWithdrawals').textContent = formatCurrency(treasuryWithdrawals);
@@ -385,7 +385,7 @@ function updateRecentCustomers() {
 }
 
 // =============================================================
-// 11. الرسوم البيانية (مع معالجة الأخطاء)
+// 11.  الرسوم البيانية (مع معالجة الأخطاء)
 // =============================================================
 function updateCharts(ordersData) {
   try {
@@ -618,4 +618,4 @@ onAuthStateChangedCallback(async (user) => {
   listenToRealtimeUpdates();
 });
 
-console.log('✅ Dashboard.js loaded (stable version with error handling)');
+console.log('✅ Dashboard.js loaded (stable version with full treasury support)');
