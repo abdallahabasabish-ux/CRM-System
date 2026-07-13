@@ -1,6 +1,5 @@
 // =============================================================
-// reports.js - الإصدار النهائي مع حسابات ديناميكية
-// يدعم: إحصائيات دقيقة، رسوم بيانية، تصدير Excel/PDF، فلاتر زمنية
+// reports.js - الإصدار النهائي مع حسابات ديناميكية ودعم الخزينة
 // =============================================================
 import { onAuthStateChangedCallback, logoutUser } from '../auth.js';
 import { db } from '../firebase-config.js';
@@ -22,11 +21,12 @@ const state = {
   employees: [],
   payments: [],
   services: [],
+  treasury: [],
   currentFilter: '30',
   dateFrom: null,
   dateTo: null,
   charts: {},
-  filtered: { orders: [], payments: [] }
+  filtered: { orders: [], payments: [], treasury: [] }
 };
 
 // =============================================================
@@ -80,12 +80,13 @@ async function fetchAllData() {
   try {
     showToast('جاري تحميل البيانات...', 'info');
 
-    const [ordersSnap, customersSnap, employeesSnap, paymentsSnap, servicesSnap] = await Promise.all([
+    const [ordersSnap, customersSnap, employeesSnap, paymentsSnap, servicesSnap, treasurySnap] = await Promise.all([
       getDocs(collection(db, 'orders')),
       getDocs(collection(db, 'customers')),
       getDocs(collection(db, 'employees')),
       getDocs(collection(db, 'payments')),
-      getDocs(collection(db, 'services'))
+      getDocs(collection(db, 'services')),
+      getDocs(collection(db, 'treasury'))
     ]);
 
     state.orders = ordersSnap.docs.map(doc => {
@@ -108,6 +109,15 @@ async function fetchAllData() {
         id: doc.id,
         ...data,
         paymentDate: data.paymentDate instanceof Timestamp ? data.paymentDate.toDate() : data.paymentDate
+      };
+    });
+
+    state.treasury = treasurySnap.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
       };
     });
 
@@ -163,6 +173,7 @@ function filterDataByDate(data, dateField = 'createdAt') {
 function applyAllFilters() {
   state.filtered.orders = filterDataByDate(state.orders, 'createdAt');
   state.filtered.payments = filterDataByDate(state.payments, 'paymentDate');
+  state.filtered.treasury = filterDataByDate(state.treasury, 'createdAt');
   updateUI();
 }
 
@@ -170,33 +181,41 @@ function applyAllFilters() {
 // 5.  تحديث واجهة المستخدم
 // =============================================================
 function updateUI() {
-  const { orders, payments } = state.filtered;
-  updateStatsCards(orders, payments);
+  const { orders, payments, treasury } = state.filtered;
+  updateStatsCards(orders, payments, treasury);
   destroyCharts();
   createCharts(orders, payments);
   updateOrdersReport(orders);
-  updateCustomersReport(); // 👈 تم تعديل هذه الدالة
+  updateCustomersReport();
   updateEmployeesReport();
   updatePaymentsReport(payments);
+  updateTreasuryReport(treasury);
 }
 
 // =============================================================
 // 6.  البطاقات الإحصائية
 // =============================================================
-function updateStatsCards(orders, payments) {
+function updateStatsCards(orders, payments, treasury) {
   const totalCustomers = state.customers.length;
   const totalOrders = orders.length;
   const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
   const totalPayments = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const totalTreasury = treasury.reduce((sum, t) => {
+    if (t.type === 'deposit') return sum + (t.amount || 0);
+    if (t.type === 'withdraw') return sum - (t.amount || 0);
+    if (t.type === 'transfer') return sum + (t.amount || 0);
+    return sum;
+  }, 0);
 
   document.getElementById('statCustomers').textContent = totalCustomers;
   document.getElementById('statOrders').textContent = totalOrders;
   document.getElementById('statRevenue').textContent = formatCurrency(totalRevenue);
   document.getElementById('statPayments').textContent = formatCurrency(totalPayments);
+  document.getElementById('statTreasury').textContent = formatCurrency(totalTreasury);
 }
 
 // =============================================================
-// 7.  الرسوم البيانية (مع دعم RTL)
+// 7.  الرسوم البيانية
 // =============================================================
 function destroyCharts() {
   Object.values(state.charts).forEach(chart => chart?.destroy());
@@ -339,7 +358,7 @@ function createCharts(orders, payments) {
 }
 
 // =============================================================
-// 8.  التقارير الجدولية (مع حسابات ديناميكية)
+// 8.  التقارير الجدولية
 // =============================================================
 
 // 8.1 تقرير الطلبات
@@ -375,7 +394,7 @@ function updateOrdersReport(orders) {
     `;
   });
   html += `
-    <tr style="font-weight:bold;background:var(--bg-input);">
+    <tr class="report-total-row">
       <td colspan="4" style="text-align:center;">الإجمالي</td>
       <td>${formatCurrency(totalSum)}</td>
       <td>${formatCurrency(paidSum)}</td>
@@ -385,11 +404,10 @@ function updateOrdersReport(orders) {
   tbody.innerHTML = html;
 }
 
-// 8.2 تقرير العملاء (مُعدّل بحساب ديناميكي) 👈 التصحيح الأهم
+// 8.2 تقرير العملاء (محسوب ديناميكياً)
 function updateCustomersReport() {
   const tbody = document.getElementById('customersReportBody');
   if (!tbody) return;
-
   if (state.customers.length === 0) {
     tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">لا يوجد عملاء</td></tr>`;
     return;
@@ -400,16 +418,11 @@ function updateCustomersReport() {
   let totalBalanceSum = 0;
 
   state.customers.forEach(c => {
-    // حساب إجمالي الطلبات وقيمتها من orders
     const customerOrders = state.orders.filter(o => o.customerId === c.id);
     const ordersCount = customerOrders.length;
     const totalOrdersValue = customerOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-
-    // حساب إجمالي المدفوعات من payments
     const customerPayments = state.payments.filter(p => p.customerId === c.id);
     const totalPaid = customerPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
-
-    // حساب المتبقي
     const balance = totalOrdersValue - totalPaid;
 
     totalPaidSum += totalPaid;
@@ -425,16 +438,13 @@ function updateCustomersReport() {
       </tr>
     `;
   });
-
-  // صف الإجمالي
   html += `
-    <tr style="font-weight:bold;background:var(--bg-input);">
+    <tr class="report-total-row">
       <td colspan="3" style="text-align:center;">الإجمالي</td>
       <td>${formatCurrency(totalPaidSum)}</td>
       <td>${formatCurrency(totalBalanceSum)}</td>
     </tr>
   `;
-
   tbody.innerHTML = html;
 }
 
@@ -465,7 +475,7 @@ function updateEmployeesReport() {
     `;
   });
   html += `
-    <tr style="font-weight:bold;background:var(--bg-input);">
+    <tr class="report-total-row">
       <td colspan="4" style="text-align:center;">الإجمالي</td>
       <td>${formatCurrency(totalCommissionSum)}</td>
     </tr>
@@ -501,12 +511,66 @@ function updatePaymentsReport(payments) {
     `;
   });
   html += `
-    <tr style="font-weight:bold;background:var(--bg-input);">
+    <tr class="report-total-row">
       <td style="text-align:center;">الإجمالي</td>
       <td>${formatCurrency(amountSum)}</td>
       <td colspan="2"></td>
     </tr>
   `;
+  tbody.innerHTML = html;
+}
+
+// 8.5 تقرير الخزينة
+function updateTreasuryReport(treasury) {
+  const tbody = document.getElementById('treasuryReportBody');
+  if (!tbody) return;
+  const data = treasury.slice(0, 100);
+  if (data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">لا توجد معاملات خزينة</td></tr>`;
+    return;
+  }
+
+  let html = '';
+  let totalDeposits = 0, totalWithdrawals = 0, totalTransfers = 0;
+
+  data.forEach(tx => {
+    const typeMap = {
+      deposit: 'إيداع',
+      withdraw: 'سحب',
+      transfer: 'تحويل'
+    };
+    const typeLabel = typeMap[tx.type] || tx.type;
+    const amount = tx.amount || 0;
+    const sign = tx.type === 'withdraw' ? '-' : '+';
+    const color = tx.type === 'withdraw' ? 'text-danger' : 'text-success';
+    const badgeColor = tx.type === 'deposit' ? 'success' : tx.type === 'withdraw' ? 'danger' : 'warning';
+
+    if (tx.type === 'deposit') totalDeposits += amount;
+    else if (tx.type === 'withdraw') totalWithdrawals += amount;
+    else if (tx.type === 'transfer') totalTransfers += amount;
+
+    html += `
+      <tr>
+        <td>${formatDate(tx.createdAt)}</td>
+        <td><span class="badge bg-${badgeColor}">${typeLabel}</span></td>
+        <td class="${color}">${sign}${formatCurrency(amount)}</td>
+        <td>${escapeHtml(tx.source || tx.target || '-')}</td>
+        <td>${escapeHtml(tx.note || '')}</td>
+      </tr>
+    `;
+  });
+
+  // صف الإجمالي
+  const balance = totalDeposits - totalWithdrawals + totalTransfers;
+  html += `
+    <tr class="report-total-row">
+      <td colspan="2" style="text-align:center;">الإجمالي</td>
+      <td>الإيداعات: ${formatCurrency(totalDeposits)}</td>
+      <td>السحوبات: ${formatCurrency(totalWithdrawals)}</td>
+      <td>الرصيد: ${formatCurrency(balance)}</td>
+    </tr>
+  `;
+
   tbody.innerHTML = html;
 }
 
@@ -689,4 +753,4 @@ async function init() {
 }
 
 init();
-console.log('✅ Reports.js loaded successfully (Dynamic calculations)');
+console.log('✅ Reports.js loaded successfully (Dynamic + Treasury)');
