@@ -6,15 +6,16 @@
 
 /* استيراد خط Almarai من Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&display=swap');
+
 /* =========================================================
    1.  المتغيرات الأساسية (Light Mode)
    ========================================================= */
 :root {
   /* الألوان الرئيسية */
-  --color-primary: #ff6600;        /* برتقالي */
-  --color-primary-dark: #cc5200;   /* برتقالي غامق */
-  --color-primary-light: #ff8533;  /* برتقالي فاتح */
-  --color-secondary: #000000;      /* أسود */
+  --color-primary: #ff6600;
+  --color-primary-dark: #cc5200;
+  --color-primary-light: #ff8533;
+  --color-secondary: #000000;
   --color-white: #ffffff;
   --color-gray-100: #f8f9fa;
   --color-gray-200: #e9ecef;
@@ -33,6 +34,7 @@
   --bg-sidebar-hover: #1a1a1a;
   --bg-topbar: #ffffff;
   --bg-input: #f8f9fc;
+  --bg-hover: #f1f3f5;
 
   --text-primary: #212529;
   --text-secondary: #495057;
@@ -49,6 +51,7 @@
   --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.12);
   --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.18);
+  --shadow-glow: 0 0 30px rgba(255, 102, 0, 0.15);
 
   /* الحواف */
   --radius-sm: 6px;
@@ -73,6 +76,7 @@
   --bg-sidebar-hover: #1a1a1a;
   --bg-topbar: #161b22;
   --bg-input: #1c2333;
+  --bg-hover: #252d3f;
 
   --text-primary: #e6edf5;
   --text-secondary: #b0c4de;
@@ -88,6 +92,7 @@
   --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.6);
   --shadow-xl: 0 20px 60px rgba(0, 0, 0, 0.7);
+  --shadow-glow: 0 0 30px rgba(255, 102, 0, 0.08);
 }
 
 /* =========================================================
@@ -145,9 +150,10 @@ ul {
 ::-webkit-scrollbar-thumb {
   background: var(--border-color);
   border-radius: var(--radius-full);
+  transition: var(--transition);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: var(--color-primary);
 }
 
 /* =========================================================
@@ -188,6 +194,12 @@ ul {
   font-weight: 800;
   font-size: 20px;
   color: var(--color-white);
+  transition: var(--transition);
+}
+
+.sidebar-header .logo-icon:hover {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-glow);
 }
 
 .sidebar-header .brand-text {
@@ -212,7 +224,7 @@ ul {
   text-transform: uppercase;
   letter-spacing: 0.8px;
   color: var(--text-sidebar);
-  opacity: 0.6;
+  opacity: 0.5;
   padding: 12px 12px 8px;
   font-weight: 700;
 }
@@ -229,17 +241,31 @@ ul {
   font-size: 14px;
   transition: var(--transition);
   cursor: pointer;
+  position: relative;
 }
 
 .menu-item:hover {
   background: var(--bg-sidebar-hover);
   color: var(--text-sidebar-active);
+  transform: translateX(-4px);
 }
 
 .menu-item.active {
   background: var(--color-primary);
   color: var(--color-white);
   box-shadow: 0 4px 12px rgba(255, 102, 0, 0.25);
+}
+
+.menu-item.active::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 24px;
+  background: var(--color-white);
+  border-radius: var(--radius-full);
 }
 
 .menu-item svg {
@@ -258,6 +284,13 @@ ul {
   display: flex;
   align-items: center;
   gap: 12px;
+  padding: 8px 4px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.sidebar-footer .user-card:hover {
+  background: var(--bg-sidebar-hover);
 }
 
 .sidebar-footer .user-avatar {
@@ -293,12 +326,19 @@ ul {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(2px);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: 1040;
+  animation: fadeIn 0.3s ease;
 }
 #sidebar-overlay.active {
   display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* =========================================================
@@ -328,6 +368,7 @@ ul {
   justify-content: space-between;
   padding: 0 28px;
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   background: rgba(var(--bg-topbar-rgb, 255, 255, 255), 0.85);
   transition: background 0.3s, border-color 0.3s;
 }
@@ -346,12 +387,13 @@ ul {
   display: none;
   font-size: 22px;
   color: var(--text-secondary);
-  padding: 6px;
+  padding: 8px;
   border-radius: var(--radius-sm);
   transition: var(--transition);
 }
 .topbar-left .hamburger:hover {
-  background: var(--bg-input);
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .topbar-left .page-title {
@@ -363,7 +405,7 @@ ul {
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
 
 .topbar-right .icon-btn {
@@ -378,7 +420,7 @@ ul {
   font-size: 18px;
 }
 .topbar-right .icon-btn:hover {
-  background: var(--bg-input);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
@@ -415,7 +457,7 @@ ul {
   transition: var(--transition);
 }
 .stat-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-4px);
   box-shadow: var(--shadow-md);
   border-color: var(--color-primary);
 }
@@ -433,6 +475,7 @@ ul {
   font-weight: 700;
   color: var(--text-primary);
   margin: 0;
+  transition: var(--transition);
 }
 
 .stat-card .icon {
@@ -443,6 +486,7 @@ ul {
   align-items: center;
   justify-content: center;
   font-size: 22px;
+  transition: var(--transition);
 }
 .stat-card .icon.blue { background: rgba(255, 102, 0, 0.1); color: var(--color-primary); }
 .stat-card .icon.green { background: rgba(40, 167, 69, 0.1); color: #28a745; }
@@ -470,6 +514,10 @@ ul {
   border-radius: var(--radius-md);
   padding: 20px 24px;
   box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+.chart-card:hover {
+  box-shadow: var(--shadow-md);
 }
 .chart-card h5 {
   font-size: 16px;
@@ -487,6 +535,10 @@ ul {
   border-radius: var(--radius-md);
   overflow: hidden;
   box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+.table-wrapper:hover {
+  box-shadow: var(--shadow-md);
 }
 
 .table-wrapper .table-header {
@@ -495,6 +547,8 @@ ul {
   align-items: center;
   padding: 16px 24px;
   border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .table-wrapper .table-header h5 {
@@ -525,6 +579,7 @@ ul {
   text-transform: uppercase;
   letter-spacing: 0.3px;
   border-bottom: 2px solid var(--border-color);
+  white-space: nowrap;
 }
 .table td {
   padding: 12px 16px;
@@ -534,11 +589,14 @@ ul {
 .table tbody tr:last-child td {
   border-bottom: none;
 }
+.table tbody tr {
+  transition: var(--transition);
+}
 .table tbody tr:hover {
-  background: rgba(255, 102, 0, 0.03);
+  background: rgba(255, 102, 0, 0.04);
 }
 [data-theme="dark"] .table tbody tr:hover {
-  background: rgba(255, 102, 0, 0.06);
+  background: rgba(255, 102, 0, 0.08);
 }
 
 /* =========================================================
@@ -559,44 +617,55 @@ ul {
   line-height: 1.4;
   font-family: var(--font-family);
 }
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .btn-primary {
   background: var(--color-primary);
   color: var(--color-white);
   border-color: var(--color-primary);
 }
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background: var(--color-primary-dark);
   border-color: var(--color-primary-dark);
-  box-shadow: 0 4px 12px rgba(255, 102, 0, 0.3);
+  box-shadow: 0 4px 16px rgba(255, 102, 0, 0.35);
+  transform: translateY(-1px);
 }
+
 .btn-accent {
   background: var(--color-primary);
   color: var(--color-white);
   border-color: var(--color-primary);
 }
-.btn-accent:hover {
+.btn-accent:hover:not(:disabled) {
   background: var(--color-primary-dark);
   border-color: var(--color-primary-dark);
-  box-shadow: 0 4px 12px rgba(255, 102, 0, 0.3);
+  box-shadow: 0 4px 16px rgba(255, 102, 0, 0.35);
+  transform: translateY(-1px);
 }
+
 .btn-outline {
   background: transparent;
   color: var(--text-secondary);
   border-color: var(--border-color);
 }
-.btn-outline:hover {
-  background: var(--bg-input);
+.btn-outline:hover:not(:disabled) {
+  background: var(--bg-hover);
   border-color: var(--text-muted);
 }
+
 .btn-secondary {
   background: var(--color-gray-600);
   color: var(--color-white);
   border-color: var(--color-gray-600);
 }
-.btn-secondary:hover {
+.btn-secondary:hover:not(:disabled) {
   background: var(--color-gray-700);
   border-color: var(--color-gray-700);
 }
+
 .btn-sm {
   padding: 6px 14px;
   font-size: 13px;
@@ -612,13 +681,13 @@ ul {
    14. النماذج والإدخالات
    ========================================================= */
 .form-group {
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 .form-label {
   display: block;
   font-weight: 700;
   font-size: 14px;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   color: var(--text-secondary);
 }
 .form-control,
@@ -641,6 +710,11 @@ ul {
 }
 .form-control::placeholder {
   color: var(--text-muted);
+}
+.form-control:disabled,
+.form-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* =========================================================
@@ -667,6 +741,9 @@ ul {
 .modal-title {
   font-weight: 700;
   font-size: 18px;
+}
+.btn-close {
+  color: var(--text-primary);
 }
 
 /* =========================================================
@@ -705,7 +782,212 @@ ul {
 }
 
 /* =========================================================
-   17. التجاوب (Responsive)
+   17.  أنماط صفحة تسجيل الدخول (Login Page)
+   ========================================================= */
+.login-page {
+  background: var(--bg-body);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  margin: 0;
+  padding: 20px;
+  font-family: var(--font-family);
+}
+
+.login-card {
+  max-width: 440px;
+  width: 100%;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  padding: 40px 32px;
+  transition: var(--transition);
+}
+.login-card:hover {
+  box-shadow: var(--shadow-xl);
+}
+
+.login-card .brand {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.login-card .brand .logo-icon {
+  width: 64px;
+  height: 64px;
+  background: var(--color-primary);
+  border-radius: var(--radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 12px;
+  transition: var(--transition);
+}
+.login-card .brand .logo-icon:hover {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-glow);
+}
+
+.login-card .brand h2 {
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  font-size: 24px;
+}
+
+.login-card .brand p {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.login-card .nav-tabs {
+  border-bottom: none;
+  gap: 4px;
+}
+
+.login-card .nav-tabs .nav-link {
+  font-weight: 600;
+  color: var(--text-muted);
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 0;
+  margin: 0 12px;
+  font-size: 15px;
+  background: transparent;
+  transition: var(--transition);
+}
+.login-card .nav-tabs .nav-link:hover {
+  color: var(--text-primary);
+  border-bottom-color: var(--border-color);
+}
+.login-card .nav-tabs .nav-link.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  background: transparent;
+}
+
+.login-card .form-group {
+  margin-bottom: 18px;
+}
+.login-card .form-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.login-card .form-control {
+  background: var(--bg-input);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+}
+.login-card .form-control:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(255, 102, 0, 0.15);
+}
+
+.login-card .btn-primary {
+  padding: 12px;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  border: none;
+  color: #fff;
+  transition: var(--transition);
+  width: 100%;
+}
+.login-card .btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  box-shadow: 0 4px 16px rgba(255, 102, 0, 0.3);
+  transform: translateY(-1px);
+}
+
+.login-card .btn-google {
+  padding: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+.login-card .btn-google:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+[data-theme="dark"] .login-card .btn-google {
+  background: var(--bg-card);
+  border-color: var(--border-dark);
+}
+[data-theme="dark"] .login-card .btn-google:hover {
+  background: var(--bg-sidebar-hover);
+}
+
+.login-card .divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.login-card .divider::before,
+.login-card .divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.login-card .extra-links {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-top: 14px;
+}
+.login-card .extra-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: var(--transition);
+}
+.login-card .extra-links a:hover {
+  color: var(--color-primary);
+}
+
+.login-card .error-msg {
+  color: #dc3545;
+  font-size: 13px;
+  margin-top: 8px;
+  display: none;
+}
+
+.login-card .icon-btn.theme-toggle {
+  font-size: 20px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  transition: var(--transition);
+  padding: 8px;
+  border-radius: var(--radius-full);
+}
+.login-card .icon-btn.theme-toggle:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+/* =========================================================
+   18.  التجاوب (Responsive)
    ========================================================= */
 @media (max-width: 992px) {
   #sidebar {
@@ -725,6 +1007,21 @@ ul {
   }
   #workspace {
     padding: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .login-card {
+    padding: 28px 20px;
+  }
+  .table-wrapper .table-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .table-wrapper .table-header .nav-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
   }
 }
 
@@ -751,67 +1048,176 @@ ul {
   #workspace {
     padding: 16px;
   }
-  .table th, .table td {
+  .table th,
+  .table td {
     padding: 8px 12px;
     font-size: 13px;
   }
+  .login-card {
+    padding: 24px 16px;
+  }
+  .login-card .brand h2 {
+    font-size: 20px;
+  }
+}
+
 /* =========================================================
-   أنماط صفحة تسجيل الدخول
+   19.  أدوات مساعدة (Utilities)
    ========================================================= */
-.login-page {
-  background: var(--bg-body);
+.text-center { text-align: center; }
+.text-muted { color: var(--text-muted) !important; }
+.text-primary { color: var(--color-primary) !important; }
+.text-success { color: #28a745 !important; }
+.text-danger { color: #dc3545 !important; }
+.text-warning { color: #ffc107 !important; }
+
+.bg-card { background: var(--bg-card) !important; }
+.bg-body { background: var(--bg-body) !important; }
+.border-color { border-color: var(--border-color) !important; }
+
+.d-flex { display: flex; }
+.align-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.flex-wrap { flex-wrap: wrap; }
+.gap-1 { gap: 4px; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 16px; }
+.gap-4 { gap: 24px; }
+
+.w-100 { width: 100%; }
+.h-100 { height: 100%; }
+
+.shadow-sm { box-shadow: var(--shadow-sm); }
+.shadow-md { box-shadow: var(--shadow-md); }
+
+.rounded { border-radius: var(--radius-sm); }
+.rounded-md { border-radius: var(--radius-md); }
+.rounded-lg { border-radius: var(--radius-lg); }
+.rounded-full { border-radius: var(--radius-full); }
+
+/* =========================================================
+   20.  أنماط إضافية للفواتير والعملاء
+   ========================================================= */
+
+/* فواتير */
+.invoice-preview-area {
+  padding: 20px;
+  font-family: var(--font-family);
+  direction: rtl;
+  background: #fff;
+  color: #333;
+}
+.invoice-preview-area .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid var(--color-primary);
+  padding-bottom: 15px;
+  margin-bottom: 20px;
+}
+.invoice-preview-area .header .company-info .logo {
+  max-height: 60px;
+  max-width: 150px;
+  object-fit: contain;
+}
+.invoice-preview-area .header .invoice-title h2 {
+  color: var(--color-primary);
+  margin: 0;
+}
+.invoice-preview-area .customer-info {
+  margin-bottom: 20px;
+}
+.invoice-preview-area table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+}
+.invoice-preview-area table th,
+.invoice-preview-area table td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: right;
+}
+.invoice-preview-area table th {
+  background: #f8f9fa;
+  font-weight: 700;
+}
+.invoice-preview-area .qrcode-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+.invoice-preview-area .footer {
+  text-align: center;
+  font-size: 12px;
+  color: #999;
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+  margin-top: 20px;
+}
+
+/* العملاء - الرصيد */
+.balance-positive {
+  color: #28a745;
+  font-weight: 700;
+}
+.balance-negative {
+  color: #dc3545;
+  font-weight: 700;
+}
+.balance-zero {
+  color: var(--text-muted);
+}
+
+.customer-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
-  margin: 0;
-  padding: 20px;
-  font-family: var(--font-family);
-}
-
-.login-card {
-  max-width: 440px;
-  width: 100%;
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-lg);
-  padding: 40px 32px;
-  transition: var(--transition);
-}
-
-.login-card .brand {
-  text-align: center;
-  margin-bottom: 28px;
-}
-
-.login-card .brand .logo-icon {
-  width: 64px;
-  height: 64px;
-  background: var(--color-primary);
-  border-radius: var(--radius-md);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  font-weight: 800;
-  color: #fff;
-  margin-bottom: 12px;
-}
-
-.login-card .brand h2 {
   font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-  font-size: 24px;
-}
-
-.login-card .brand p {
-  color: var(--text-muted);
   font-size: 14px;
-  margin-top: 4px;
+  background: var(--color-primary);
+  color: #fff;
+  flex-shrink: 0;
 }
 
-.login-card .nav-tabs .nav
-   
+/* المدفوعات - شارة الطريقة */
+.payment-method-badge {
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: var(--bg-input);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  display: inline-block;
+}
+.payment-amount {
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+/* التقارير - صف الإجمالي */
+.report-total-row {
+  font-weight: bold;
+  background-color: var(--bg-input);
+  border-top: 2px solid var(--color-primary);
+}
+.report-total-row td {
+  padding: 10px;
+}
+
+/* =========================================================
+   21.  أنماط التحميل (Skeleton Loading)
+   ========================================================= */
+.skeleton {
+  animation: shimmer 1.5s infinite;
+  background: linear-gradient(90deg, var(--bg-input) 25%, var(--border-color) 50%, var(--bg-input) 75%);
+  background-size: 200% 100%;
+  border-radius: 4px;
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
