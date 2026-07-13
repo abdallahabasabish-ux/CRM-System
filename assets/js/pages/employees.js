@@ -11,13 +11,9 @@ import {
   orderBy
 } from 'firebase/firestore';
 
-// ============================
-// متغيرات عامة
-// ============================
 let employees = [];
 let editingId = null;
 let employeesListener = null;
-let employeeModalInstance = null;
 
 // ============================
 // 1. المصادقة
@@ -27,9 +23,14 @@ onAuthStateChangedCallback((user) => {
     window.location.href = '../login.html';
     return;
   }
-  document.getElementById('sidebarUserName').textContent = user.displayName || user.email;
-  document.getElementById('sidebarUserEmail').textContent = user.email;
-  document.getElementById('sidebarAvatar').textContent = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
+  const sidebarUserName = document.getElementById('sidebarUserName');
+  const sidebarUserEmail = document.getElementById('sidebarUserEmail');
+  const sidebarAvatar = document.getElementById('sidebarAvatar');
+  if (sidebarUserName) sidebarUserName.textContent = user.displayName || user.email;
+  if (sidebarUserEmail) sidebarUserEmail.textContent = user.email;
+  if (sidebarAvatar) {
+    sidebarAvatar.textContent = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
+  }
   
   listenToEmployees();
 });
@@ -37,47 +38,61 @@ onAuthStateChangedCallback((user) => {
 // ============================
 // 2. تسجيل الخروج وتبديل الوضع
 // ============================
-document.getElementById('logoutBtn').addEventListener('click', async () => {
+document.getElementById('logoutBtn')?.addEventListener('click', async () => {
   await logoutUser();
   window.location.href = '../login.html';
 });
 
-// تبديل الوضع المظلم
 const themeToggle = document.getElementById('themeToggle');
 const htmlElement = document.documentElement;
 const savedTheme = localStorage.getItem('theme') || 'light';
 if (savedTheme === 'dark') {
   htmlElement.setAttribute('data-theme', 'dark');
-  themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+  if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
 }
-themeToggle.addEventListener('click', () => {
-  const currentTheme = htmlElement.getAttribute('data-theme');
-  if (currentTheme === 'dark') {
-    htmlElement.removeAttribute('data-theme');
-    localStorage.setItem('theme', 'light');
-    themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
-  } else {
-    htmlElement.setAttribute('data-theme', 'dark');
-    localStorage.setItem('theme', 'dark');
-    themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
-  }
-});
+if (themeToggle) {
+  themeToggle.addEventListener('click', () => {
+    const currentTheme = htmlElement.getAttribute('data-theme');
+    if (currentTheme === 'dark') {
+      htmlElement.removeAttribute('data-theme');
+      localStorage.setItem('theme', 'light');
+      themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+    } else {
+      htmlElement.setAttribute('data-theme', 'dark');
+      localStorage.setItem('theme', 'dark');
+      themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+    }
+  });
+}
 
-// تبديل Sidebar للشاشات الصغيرة
-document.getElementById('sidebarToggle')?.addEventListener('click', () => {
-  document.getElementById('sidebar').classList.toggle('open');
-});
+const sidebarToggle = document.getElementById('sidebarToggle');
+const sidebar = document.getElementById('sidebar');
+if (sidebarToggle && sidebar) {
+  sidebarToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('active');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (overlay) overlay.classList.toggle('active');
+  });
+}
+const overlay = document.getElementById('sidebar-overlay');
+if (overlay) {
+  overlay.addEventListener('click', () => {
+    sidebar.classList.remove('active');
+    overlay.classList.remove('active');
+  });
+}
 
 // ============================
 // 3. تهيئة Modal
 // ============================
 const modalElement = document.getElementById('employeeModal');
+let employeeModalInstance = null;
 if (modalElement) {
   employeeModalInstance = new bootstrap.Modal(modalElement);
 }
 
 // ============================
-// 4. دوال مساعدة (Toast)
+// 4. دوال مساعدة
 // ============================
 function showToast(message, type = 'success') {
   const colors = {
@@ -97,7 +112,7 @@ function showToast(message, type = 'success') {
 }
 
 // ============================
-// 5. قراءة الموظفين من Firestore (Realtime)
+// 5. قراءة الموظفين
 // ============================
 function listenToEmployees() {
   const employeesRef = collection(db, 'employees');
@@ -120,7 +135,7 @@ function listenToEmployees() {
       ...doc.data()
     }));
 
-    const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
+    const searchTerm = document.getElementById('searchInput')?.value.trim().toLowerCase() || '';
     const filtered = searchTerm ? filterEmployees(searchTerm) : employees;
     renderTable(filtered);
     document.getElementById('resultCount').textContent = `عرض ${filtered.length} موظف`;
@@ -202,7 +217,7 @@ function escapeHtml(text) {
 }
 
 // ============================
-// 7. البحث والفلترة
+// 7. البحث
 // ============================
 function filterEmployees(term) {
   return employees.filter(e =>
@@ -211,7 +226,7 @@ function filterEmployees(term) {
   );
 }
 
-document.getElementById('searchInput').addEventListener('input', (e) => {
+document.getElementById('searchInput')?.addEventListener('input', (e) => {
   const term = e.target.value.trim().toLowerCase();
   const filtered = term ? filterEmployees(term) : employees;
   renderTable(filtered);
@@ -219,21 +234,20 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
 });
 
 // ============================
-// 8. فتح مودال الإضافة
+// 8. مودال الإضافة
 // ============================
-document.getElementById('addEmployeeBtn').addEventListener('click', () => {
+document.getElementById('addEmployeeBtn')?.addEventListener('click', () => {
   editingId = null;
   document.getElementById('modalTitle').textContent = 'إضافة موظف جديد';
   document.getElementById('employeeForm').reset();
   document.getElementById('employeeId').value = '';
-  // ضبط القيم الافتراضية
   document.getElementById('status').value = 'نشط';
   document.getElementById('commission').value = 0;
-  employeeModalInstance.show();
+  if (employeeModalInstance) employeeModalInstance.show();
 });
 
 // ============================
-// 9. فتح مودال التعديل
+// 9. مودال التعديل
 // ============================
 function openEditModal(id) {
   const employee = employees.find(e => e.id === id);
@@ -255,13 +269,13 @@ function openEditModal(id) {
   document.getElementById('hireDate').value = employee.hireDate || '';
   document.getElementById('notes').value = employee.notes || '';
   
-  employeeModalInstance.show();
+  if (employeeModalInstance) employeeModalInstance.show();
 }
 
 // ============================
-// 10. حفظ البيانات (إضافة / تعديل)
+// 10. حفظ البيانات
 // ============================
-document.getElementById('saveEmployeeBtn').addEventListener('click', async () => {
+document.getElementById('saveEmployeeBtn')?.addEventListener('click', async () => {
   const name = document.getElementById('name').value.trim();
   const position = document.getElementById('position').value;
   const phone = document.getElementById('phone').value.trim();
@@ -301,7 +315,7 @@ document.getElementById('saveEmployeeBtn').addEventListener('click', async () =>
       await addDoc(collection(db, 'employees'), data);
       showToast('تم إضافة الموظف بنجاح', 'success');
     }
-    employeeModalInstance.hide();
+    if (employeeModalInstance) employeeModalInstance.hide();
   } catch (error) {
     console.error('Error saving employee:', error);
     showToast('حدث خطأ أثناء الحفظ', 'error');
@@ -312,7 +326,7 @@ document.getElementById('saveEmployeeBtn').addEventListener('click', async () =>
 });
 
 // ============================
-// 11. حذف موظف مع تأكيد
+// 11. حذف موظف
 // ============================
 async function confirmDelete(id) {
   const employee = employees.find(e => e.id === id);
@@ -340,9 +354,6 @@ async function confirmDelete(id) {
   }
 }
 
-// ============================
-// 12. إعادة تعيين النموذج عند الإغلاق
-// ============================
 modalElement?.addEventListener('hidden.bs.modal', () => {
   document.getElementById('employeeForm').reset();
   document.getElementById('employeeId').value = '';
