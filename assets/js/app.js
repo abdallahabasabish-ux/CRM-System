@@ -1,11 +1,15 @@
-import { onAuthStateChangedCallback, logoutUser, getCurrentUser } from './auth.js';
+import { onAuthStateChangedCallback, logoutUser, loginUser } from './auth.js';
 
-// تحديد الصفحة الحالية
+console.log('app.js loaded');
+
 const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+console.log('Current page:', currentPage);
 
-// ----- صفحة index.html (التوجيه التلقائي) -----
+// ----- index.html (التوجيه) -----
 if (currentPage === 'index.html' || currentPage === '') {
+  console.log('Running index page logic');
   onAuthStateChangedCallback((user) => {
+    console.log('Auth state changed:', user);
     if (user) {
       window.location.href = 'dashboard.html';
     } else {
@@ -14,8 +18,9 @@ if (currentPage === 'index.html' || currentPage === '') {
   });
 }
 
-// ----- صفحة login.html (معالجة النموذج) -----
+// ----- login.html -----
 if (currentPage === 'login.html') {
+  console.log('Running login page logic');
   const form = document.getElementById('loginForm');
   const errorDiv = document.getElementById('loginError');
 
@@ -33,7 +38,7 @@ if (currentPage === 'login.html') {
       btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري التحقق...';
 
       try {
-        const userCredential = await loginUser(email, password);
+        await loginUser(email, password);
         window.location.href = 'dashboard.html';
       } catch (error) {
         let msg = 'حدث خطأ، تحقق من البيانات.';
@@ -49,7 +54,7 @@ if (currentPage === 'login.html') {
       }
     });
 
-    // تبديل إظهار كلمة المرور
+    // تبديل كلمة المرور
     const toggleBtn = document.getElementById('togglePassword');
     if (toggleBtn) {
       toggleBtn.addEventListener('click', function () {
@@ -67,21 +72,20 @@ if (currentPage === 'login.html') {
   }
 }
 
-// ----- صفحة dashboard.html (عرض المستخدم + تسجيل الخروج) -----
+// ----- dashboard.html -----
 if (currentPage === 'dashboard.html') {
-  // التأكد من وجود مستخدم
+  console.log('Running dashboard page logic');
   onAuthStateChangedCallback((user) => {
+    console.log('Dashboard auth state:', user);
     if (!user) {
       window.location.href = 'login.html';
       return;
     }
-    // عرض معلومات المستخدم
     document.getElementById('userEmail').textContent = user.email;
     document.getElementById('userUid').textContent = user.uid;
     document.getElementById('userName').textContent = user.displayName || user.email;
   });
 
-  // زر تسجيل الخروج
   const logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async (e) => {
