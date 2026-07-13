@@ -49,7 +49,7 @@ onAuthStateChangedCallback(async (user) => {
       role = userDoc.data().role || 'موظف';
     }
 
-    if (role === 'مدير') {
+    if (role === 'adman') {
       // إظهار محتوى الإعدادات
       document.getElementById('settingsContent').style.display = 'block';
       document.getElementById('unauthorizedMessage').style.display = 'none';
