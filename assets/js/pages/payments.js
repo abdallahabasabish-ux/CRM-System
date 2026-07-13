@@ -26,7 +26,7 @@ let paymentsListener = null;
 let paymentModalInstance = null;
 
 // ============================
-// 1. دوال مساعدة (Toast, Escape, Format)
+// 1. دوال مساعدة
 // ============================
 function showToast(message, type = 'success') {
   const colors = {
@@ -243,7 +243,7 @@ function listenToPayments() {
 }
 
 // ============================
-// 7. عرض الجدول
+// 7. عرض الجدول (مع Event Delegation)
 // ============================
 function renderTable(data) {
   const tbody = document.getElementById('paymentsTableBody');
@@ -283,13 +283,17 @@ function renderTable(data) {
   });
 
   tbody.innerHTML = html;
-  // استخدام event delegation للأزرار
+  // ربط الـ Event Delegation (مرة واحدة فقط)
   setupTableActions();
 }
 
+// ============================
+// 7.1 Event Delegation للأزرار (الحل السحري)
+// ============================
 function setupTableActions() {
   const tbody = document.getElementById('paymentsTableBody');
   if (!tbody) return;
+  // إزالة المستمع القديم لتجنب التكرار
   tbody.removeEventListener('click', handleTableClick);
   tbody.addEventListener('click', handleTableClick);
 }
@@ -343,13 +347,11 @@ document.getElementById('addPaymentBtn')?.addEventListener('click', () => {
     defaultDate: new Date().toISOString().slice(0,10)
   });
 
-  // تعبئة قائمة العملاء
   populateCustomerSelect();
-  // تعطيل قائمة الطلبات حتى اختيار عميل
   document.getElementById('orderSelect').disabled = true;
   document.getElementById('orderSelect').innerHTML = '<option value="">اختر طلب...</option>';
 
-  // إضافة مستمع لتغيير العميل
+  // مستمع لتغيير العميل
   document.getElementById('customerSelect').addEventListener('change', function() {
     const customerId = this.value;
     loadOrdersForCustomer(customerId);
@@ -378,18 +380,15 @@ function openEditModal(id) {
   document.getElementById('paymentDate').value = formatDate(payment.paymentDate);
   document.getElementById('paymentNotes').value = payment.notes || '';
 
-  // تعبئة العملاء واختيار العميل المناسب
   populateCustomerSelect();
   const customer = customersList.find(c => c.id === payment.customerId);
   if (customer) {
     document.getElementById('customerSelect').value = customer.id;
-    // تحميل الطلبات لهذا العميل
     loadOrdersForCustomer(customer.id).then(() => {
       document.getElementById('orderSelect').value = payment.orderId || '';
     });
   }
 
-  // تفعيل Flatpickr
   flatpickr('#paymentDate', {
     locale: 'ar',
     dateFormat: 'Y-m-d',
@@ -400,7 +399,7 @@ function openEditModal(id) {
 }
 
 // ============================
-// 11. حفظ البيانات (مع Transaction)
+// 11. حفظ البيانات (Transaction)
 // ============================
 document.getElementById('savePaymentBtn')?.addEventListener('click', async () => {
   const customerId = document.getElementById('customerSelect').value;
@@ -487,7 +486,7 @@ document.getElementById('savePaymentBtn')?.addEventListener('click', async () =>
 });
 
 // ============================
-// 12. حذف دفعة (مع Transaction)
+// 12. حذف دفعة (Transaction)
 // ============================
 async function confirmDelete(id) {
   const payment = payments.find(p => p.id === id);
@@ -509,7 +508,6 @@ async function confirmDelete(id) {
       await runTransaction(db, async (transaction) => {
         const paymentRef = doc(db, 'payments', id);
         transaction.delete(paymentRef);
-
         const orderRef = doc(db, 'orders', payment.orderId);
         const orderDoc = await transaction.get(orderRef);
         if (orderDoc.exists()) {
@@ -543,7 +541,4 @@ modalElement?.addEventListener('hidden.bs.modal', () => {
   document.getElementById('orderSelect').innerHTML = '<option value="">اختر طلب...</option>';
 });
 
-// ============================
-// 14. تهيئة الصفحة
-// ============================
-console.log('✅ Payments page ready');
+console.log('✅ Payments page ready with fixed buttons');
