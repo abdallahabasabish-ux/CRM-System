@@ -86,11 +86,11 @@ async function loadSettings() {
     if (settingsDoc.exists()) {
       settings = settingsDoc.data();
     } else {
-      settings = { companyName: 'شركتي', companyLogo: '', currency: '$' };
+      settings = { companyName: 'Abdallah Abas', companyLogo: '', currency: '$' };
     }
   } catch (error) {
     console.error('Error loading settings:', error);
-    settings = { companyName: 'شركتي', companyLogo: '', currency: '$' };
+    settings = { companyName: 'Abdallah Abas', companyLogo: '', currency: '$' };
   }
 }
 
