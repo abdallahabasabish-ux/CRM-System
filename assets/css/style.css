@@ -367,3 +367,61 @@ body {
   background: var(--border-color);
   border-radius: 10px;
 }
+/* ============================================
+   جدول العملاء
+   ============================================ */
+.table {
+  color: var(--text-primary);
+}
+.table thead th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  border-bottom: 2px solid var(--border-color);
+  padding: 14px 12px;
+}
+.table tbody td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+.table tbody tr:hover {
+  background: rgba(79, 70, 229, 0.03);
+}
+.table .btn-sm {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: var(--transition);
+}
+.table .btn-sm:hover {
+  transform: scale(1.1);
+}
+
+/* ============================================
+   Modal (نافذة الإضافة والتعديل)
+   ============================================ */
+.modal-content {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+.modal-header {
+  border-bottom: 1px solid var(--border-color);
+}
+.modal-footer {
+  border-top: 1px solid var(--border-color);
+}
+.modal .form-control,
+.modal .form-control:focus {
+  background: var(--bg-body);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
