@@ -1,6 +1,5 @@
 // =============================================================
-// payments.js - النسخة الاحترافية النهائية (تم إصلاح الحذف)
-// يدعم: إضافة، تعديل، حذف، تحديث رصيد العميل (totalPaid & balance)
+// payments.js - الإصدار النهائي مع معاملات وتحديث العميل
 // =============================================================
 import { onAuthStateChangedCallback, logoutUser } from '../auth.js';
 import { db } from '../firebase-config.js';
@@ -20,18 +19,12 @@ import {
   Timestamp
 } from 'firebase/firestore';
 
-// =============================================================
-// 1.  المتغيرات العامة
-// =============================================================
 let payments = [];
 let customersList = [];
 let editingId = null;
 let paymentsListener = null;
 let paymentModalInstance = null;
 
-// =============================================================
-// 2.  دوال مساعدة (Utilities)
-// =============================================================
 function formatCurrency(amount, currency = '$') {
   if (amount === undefined || amount === null) return `${currency}0.00`;
   return `${currency}${amount.toFixed(2)}`;
@@ -73,9 +66,6 @@ function showToast(message, type = 'success') {
   }
 }
 
-// =============================================================
-// 3.  تحميل العملاء
-// =============================================================
 async function loadCustomers() {
   try {
     const customersSnap = await getDocs(collection(db, 'customers'));
@@ -99,15 +89,11 @@ function populateCustomerSelect() {
   });
 }
 
-// =============================================================
-// 4.  المصادقة والتهيئة
-// =============================================================
 onAuthStateChangedCallback(async (user) => {
   if (!user) {
     window.location.href = '../login.html';
     return;
   }
-  // تحديث بيانات المستخدم في الـ Sidebar
   const sidebarUserName = document.getElementById('sidebarUserName');
   const sidebarUserEmail = document.getElementById('sidebarUserEmail');
   const sidebarAvatar = document.getElementById('sidebarAvatar');
@@ -116,14 +102,10 @@ onAuthStateChangedCallback(async (user) => {
   if (sidebarAvatar) {
     sidebarAvatar.textContent = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
   }
-
   await loadCustomers();
   listenToPayments();
 });
 
-// =============================================================
-// 5.  تسجيل الخروج وتبديل الوضع
-// =============================================================
 document.getElementById('logoutBtn')?.addEventListener('click', async () => {
   await logoutUser();
   window.location.href = '../login.html';
@@ -151,17 +133,15 @@ if (themeToggle) {
   });
 }
 
-// تبديل Sidebar للجوال
 const sidebarToggle = document.getElementById('sidebarToggle');
 const sidebar = document.getElementById('sidebar');
+const overlay = document.getElementById('sidebar-overlay');
 if (sidebarToggle && sidebar) {
   sidebarToggle.addEventListener('click', () => {
     sidebar.classList.toggle('active');
-    const overlay = document.getElementById('sidebar-overlay');
     if (overlay) overlay.classList.toggle('active');
   });
 }
-const overlay = document.getElementById('sidebar-overlay');
 if (overlay) {
   overlay.addEventListener('click', () => {
     sidebar.classList.remove('active');
@@ -169,24 +149,16 @@ if (overlay) {
   });
 }
 
-// =============================================================
-// 6.  تهيئة Modal
-// =============================================================
 const modalElement = document.getElementById('paymentModal');
 if (modalElement) {
   paymentModalInstance = new bootstrap.Modal(modalElement);
 }
 
-// =============================================================
-// 7.  قراءة المدفوعات (Realtime)
-// =============================================================
 function listenToPayments() {
   const q = query(collection(db, 'payments'), orderBy('paymentDate', 'desc'));
-
   if (paymentsListener) {
     paymentsListener();
   }
-
   paymentsListener = onSnapshot(q, (snapshot) => {
     if (snapshot.empty) {
       payments = [];
@@ -195,16 +167,13 @@ function listenToPayments() {
       document.getElementById('resultCount').textContent = 'عرض 0 دفعة';
       return;
     }
-
     payments = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
       paymentDate: doc.data().paymentDate?.toDate?.() || doc.data().paymentDate || null
     }));
-
     const total = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
     document.getElementById('totalPayments').textContent = formatCurrency(total);
-
     const searchTerm = document.getElementById('searchInput')?.value.trim().toLowerCase() || '';
     const filtered = searchTerm ? filterPayments(searchTerm) : payments;
     renderTable(filtered);
@@ -215,18 +184,13 @@ function listenToPayments() {
   });
 }
 
-// =============================================================
-// 8.  عرض الجدول (مع Event Delegation)
-// =============================================================
 function renderTable(data) {
   const tbody = document.getElementById('paymentsTableBody');
   if (!tbody) return;
-
   if (!data || data.length === 0) {
     tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">لا يوجد مدفوعات</td></tr>`;
     return;
   }
-
   let html = '';
   data.forEach((payment, index) => {
     let customerName = payment.customerName || 'غير معروف';
@@ -234,7 +198,6 @@ function renderTable(data) {
       const customer = customersList.find(c => c.id === payment.customerId);
       customerName = customer ? customer.name : 'غير معروف';
     }
-
     html += `
       <tr>
         <td>${index + 1}</td>
@@ -254,14 +217,10 @@ function renderTable(data) {
       </tr>
     `;
   });
-
   tbody.innerHTML = html;
   setupTableActions();
 }
 
-// =============================================================
-// 8.1 Event Delegation للأزرار
-// =============================================================
 function setupTableActions() {
   const tbody = document.getElementById('paymentsTableBody');
   if (!tbody) return;
@@ -280,9 +239,6 @@ function handleTableClick(e) {
   else if (action === 'delete') confirmDelete(id);
 }
 
-// =============================================================
-// 9.  البحث
-// =============================================================
 function filterPayments(term) {
   return payments.filter(p => {
     let customerName = p.customerName || '';
@@ -301,16 +257,12 @@ document.getElementById('searchInput')?.addEventListener('input', (e) => {
   document.getElementById('resultCount').textContent = `عرض ${filtered.length} دفعة`;
 });
 
-// =============================================================
-// 10. فتح مودال الإضافة
-// =============================================================
 document.getElementById('addPaymentBtn')?.addEventListener('click', () => {
   editingId = null;
   document.getElementById('modalTitle').textContent = 'تسجيل دفعة جديدة';
   document.getElementById('paymentForm').reset();
   document.getElementById('paymentId').value = '';
   document.getElementById('oldAmount').value = '';
-
   if (typeof flatpickr !== 'undefined') {
     flatpickr('#paymentDate', {
       locale: 'ar',
@@ -318,21 +270,16 @@ document.getElementById('addPaymentBtn')?.addEventListener('click', () => {
       defaultDate: new Date().toISOString().slice(0, 10)
     });
   }
-  
   populateCustomerSelect();
   if (paymentModalInstance) paymentModalInstance.show();
 });
 
-// =============================================================
-// 11. فتح مودال التعديل
-// =============================================================
 function openEditModal(id) {
   const payment = payments.find(p => p.id === id);
   if (!payment) {
     showToast('الدفعة غير موجودة', 'error');
     return;
   }
-
   editingId = id;
   document.getElementById('modalTitle').textContent = 'تعديل الدفعة';
   document.getElementById('paymentId').value = id;
@@ -341,13 +288,11 @@ function openEditModal(id) {
   document.getElementById('method').value = payment.method || '';
   document.getElementById('paymentDate').value = formatDate(payment.paymentDate);
   document.getElementById('paymentNotes').value = payment.notes || '';
-
   populateCustomerSelect();
   const customer = customersList.find(c => c.id === payment.customerId);
   if (customer) {
     document.getElementById('customerSelect').value = customer.id;
   }
-
   if (typeof flatpickr !== 'undefined') {
     flatpickr('#paymentDate', {
       locale: 'ar',
@@ -355,23 +300,17 @@ function openEditModal(id) {
       defaultDate: payment.paymentDate || new Date()
     });
   }
-
   if (paymentModalInstance) paymentModalInstance.show();
 }
 
-// =============================================================
-// 12. حفظ البيانات (مع Transaction وتحديث العميل)
-// =============================================================
 document.getElementById('savePaymentBtn')?.addEventListener('click', async () => {
   const customerId = document.getElementById('customerSelect').value;
   const amount = parseFloat(document.getElementById('amount').value);
   const method = document.getElementById('method').value;
-
   if (!customerId || !amount || amount <= 0 || !method) {
     showToast('الرجاء اختيار العميل والمبلغ وطريقة الدفع', 'warning');
     return;
   }
-
   const paymentId = document.getElementById('paymentId').value;
   const oldAmount = parseFloat(document.getElementById('oldAmount').value) || 0;
   const paymentDate = document.getElementById('paymentDate').value || new Date().toISOString().slice(0, 10);
@@ -383,13 +322,11 @@ document.getElementById('savePaymentBtn')?.addEventListener('click', async () =>
 
   try {
     await runTransaction(db, async (transaction) => {
-      // 1. جلب بيانات العميل (قراءة أولاً)
       const customerRef = doc(db, 'customers', customerId);
       const customerDoc = await transaction.get(customerRef);
       if (!customerDoc.exists()) throw new Error('العميل غير موجود');
       const customerData = customerDoc.data();
 
-      // 2. حساب الرصيد الجديد
       let currentTotalPaid = customerData.totalPaid || 0;
       let currentBalance = customerData.balance || 0;
 
@@ -401,14 +338,12 @@ document.getElementById('savePaymentBtn')?.addEventListener('click', async () =>
         currentBalance = currentBalance - amount;
       }
 
-      // 3. تحديث العميل (كتابة)
       transaction.update(customerRef, {
         totalPaid: currentTotalPaid,
         balance: currentBalance,
         updatedAt: new Date().toISOString()
       });
 
-      // 4. حفظ الدفعة (كتابة)
       const paymentData = {
         customerId,
         customerName: customerData.name || null,
@@ -428,7 +363,6 @@ document.getElementById('savePaymentBtn')?.addEventListener('click', async () =>
         transaction.set(paymentRef, paymentData);
       }
     });
-
     showToast(paymentId ? 'تم تحديث الدفعة بنجاح' : 'تم تسجيل الدفعة بنجاح', 'success');
     if (paymentModalInstance) paymentModalInstance.hide();
   } catch (error) {
@@ -442,16 +376,12 @@ document.getElementById('savePaymentBtn')?.addEventListener('click', async () =>
   }
 });
 
-// =============================================================
-// 13. حذف دفعة (مع Transaction وتحديث العميل) - تم الإصلاح الجذري لقاعدة الترتيب
-// =============================================================
 async function confirmDelete(id) {
   const payment = payments.find(p => p.id === id);
   if (!payment) {
     showToast('الدفعة غير موجودة', 'error');
     return;
   }
-
   const result = await Swal.fire({
     title: 'هل أنت متأكد؟',
     text: `سيتم حذف الدفعة بقيمة ${formatCurrency(payment.amount)} نهائيًا.`,
@@ -462,31 +392,22 @@ async function confirmDelete(id) {
     confirmButtonText: 'نعم، احذف',
     cancelButtonText: 'إلغاء'
   });
-
   if (!result.isConfirmed) return;
-
-  // إظهار مؤشر تحميل محدد على الزر المضغوط بدقة
-  const deleteBtn = document.querySelector(`.action-btn[data-action="delete"][data-id="${id}"]`);
+  const deleteBtn = document.querySelector(`.action-btn[data-id="${id}"]`);
   if (deleteBtn) {
     deleteBtn.disabled = true;
     deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
   }
-
   try {
     await runTransaction(db, async (transaction) => {
-      // الـ Rule الأساسي في الـ Transaction: القراءات (Gets) أولاً دائماً!
-      const customerRef = doc(db, 'customers', payment.customerId);
-      const customerDoc = await transaction.get(customerRef);
-      
-      // الآن نقوم بالعمليات الهيكلية (الحذف والتحديث)
       const paymentRef = doc(db, 'payments', id);
       transaction.delete(paymentRef);
-
+      const customerRef = doc(db, 'customers', payment.customerId);
+      const customerDoc = await transaction.get(customerRef);
       if (customerDoc.exists()) {
         const data = customerDoc.data();
         const newTotalPaid = (data.totalPaid || 0) - payment.amount;
         const newBalance = (data.balance || 0) + payment.amount;
-        
         transaction.update(customerRef, {
           totalPaid: newTotalPaid,
           balance: newBalance,
@@ -506,13 +427,10 @@ async function confirmDelete(id) {
   }
 }
 
-// =============================================================
-// 14. إعادة تعيين النموذج عند الإغلاق
-// =============================================================
 modalElement?.addEventListener('hidden.bs.modal', () => {
   document.getElementById('paymentForm').reset();
   document.getElementById('paymentId').value = '';
   document.getElementById('oldAmount').value = '';
 });
 
-console.log('✅ Payments.js loaded successfully (Fixed Delete Transaction)');
+console.log('✅ Payments.js loaded successfully');
