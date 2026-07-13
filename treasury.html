@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>الخزينة الشخصية - نظام إدارة الأعمال</title>
+
+  <!-- Bootstrap 5 RTL -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet" />
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- Toastify -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <!-- Flatpickr -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ar.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- الأنماط المخصصة -->
+  <link rel="stylesheet" href="assets/css/style.css" />
+
+  <style>
+    /* تنسيقات الخزينة */
+    .treasury-balance-card {
+      background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+      color: #fff;
+      border-radius: var(--radius-lg);
+      padding: 30px 32px;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+      overflow: hidden;
+    }
+    .treasury-balance-card::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -20%;
+      width: 200px;
+      height: 200px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 50%;
+    }
+    .treasury-balance-card .balance-amount {
+      font-size: 42px;
+      font-weight: 800;
+      margin: 8px 0;
+    }
+    .treasury-balance-card .balance-label {
+      font-size: 14px;
+      opacity: 0.8;
+      font-weight: 400;
+    }
+    .treasury-balance-card .balance-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .treasury-balance-card .balance-actions .btn {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 8px 20px;
+      border-radius: var(--radius-full);
+      font-weight: 600;
+      transition: var(--transition);
+    }
+    .treasury-balance-card .balance-actions .btn:hover {
+      background: rgba(255, 255, 255, 0.25);
+      transform: scale(1.02);
+    }
+
+    .treasury-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .treasury-stat-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      text-align: center;
+      transition: var(--transition);
+    }
+    .treasury-stat-item:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    .treasury-stat-item .stat-number {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .treasury-stat-item .stat-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .treasury-stat-item .stat-icon {
+      font-size: 20px;
+      margin-bottom: 4px;
+      display: block;
+    }
+    .stat-icon.deposit { color: #28a745; }
+    .stat-icon.withdraw { color: #dc3545; }
+    .stat-icon.transfer { color: var(--color-primary); }
+
+    /* تنسيق المعاملات */
+    .transaction-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      transition: var(--transition);
+    }
+    .transaction-item:hover {
+      background: var(--bg-hover);
+    }
+    .transaction-item .tx-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .transaction-item .tx-icon.deposit { background: rgba(40, 167, 69, 0.15); color: #28a745; }
+    .transaction-item .tx-icon.withdraw { background: rgba(220, 53, 69, 0.15); color: #dc3545; }
+    .transaction-item .tx-icon.transfer { background: rgba(255, 102, 0, 0.15); color: var(--color-primary); }
+    .transaction-item .tx-info { flex: 1; margin: 0 12px; }
+    .transaction-item .tx-info .tx-title { font-weight: 600; font-size: 14px; color: var(--text-primary); }
+    .transaction-item .tx-info .tx-sub { font-size: 12px; color: var(--text-muted); }
+    .transaction-item .tx-amount { font-weight: 700; font-size: 16px; }
+    .transaction-item .tx-amount.positive { color: #28a745; }
+    .transaction-item .tx-amount.negative { color: #dc3545; }
+
+    .filter-badge {
+      padding: 4px 14px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--bg-input);
+      color: var(--text-muted);
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .filter-badge:hover {
+      background: var(--bg-hover);
+    }
+    .filter-badge.active {
+      background: var(--color-primary);
+      color: #fff;
+      border-color: var(--color-primary);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================= -->
+  <!-- الطبقة المظللة للـ Sidebar (للجوال) -->
+  <!-- ========================================================= -->
+  <div id="sidebar-overlay" onclick="document.getElementById('sidebar').classList.remove('active')"></div>
+
+  <!-- ========================================================= -->
+  <!-- القائمة الجانبية (موحدة) -->
+  <!-- ========================================================= -->
+  <aside id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-icon">ن</div>
+      <div class="brand-text">نظام <span>الإدارة</span></div>
+    </div>
+    <ul class="sidebar-menu">
+      <li class="menu-label">القائمة الرئيسية</li>
+      <li><a href="dashboard.html" class="menu-item"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> لوحة القيادة</a></li>
+      <li><a href="customers.html" class="menu-item"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg> العملاء</a></li>
+      <li><a href="services.html" class="menu-item"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg> الخدمات</a></li>
+      <li><a href="orders.html" class="menu-item"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg> الطلبات</a></li>
+      <li><a href="employees.html" class="menu-item"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> الموظفون</a></li>
+      <li><a href="payments.html" class="menu-item"><svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg> المدفوعات</a></li>
+      <li><a href="invoices.html" class="menu-item"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 15.5l-1.5-1.5-1.5 1.5L7.5 17l-1.5 1.5L4.5 17l1.5-1.5L4.5 14l1.5-1.5L4.5 11l1.5-1.5L4.5 8l1.5-1.5L4.5 5l1.5-1.5L7.5 5l1.5-1.5L10.5 5l1.5-1.5L13.5 5l1.5-1.5L16.5 5l1.5-1.5L19.5 5l-1.5 1.5L19.5 8l-1.5 1.5L19.5 11l-1.5 1.5L19.5 14l-1.5 1.5L19.5 17l-1.5 1.5L19.5 20l-1.5-1.5L16.5 20l-1.5-1.5L13.5 20l-1.5-1.5L12 18.5z"/></svg> الفواتير</a></li>
+      <li><a href="reports.html" class="menu-item"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg> التقارير</a></li>
+      <li><a href="treasury.html" class="menu-item active"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg> الخزينة</a></li>
+      <li class="menu-label">النظام</li>
+      <li><a href="settings.html" class="menu-item"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .43-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.49-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg> الإعدادات</a></li>
+    </ul>
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="user-avatar" id="sidebarAvatar">م</div>
+        <div>
+          <div class="user-name" id="sidebarUserName">المستخدم</div>
+          <div class="user-email" id="sidebarUserEmail">user@email.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ========================================================= -->
+  <!-- المحتوى الرئيسي -->
+  <!-- ========================================================= -->
+  <div id="main-content">
+
+    <!-- الشريط العلوي -->
+    <header id="topbar">
+      <div class="topbar-left">
+        <button class="hamburger" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+        <h1 class="page-title">الخزينة الشخصية</h1>
+      </div>
+      <div class="topbar-right">
+        <button class="icon-btn theme-toggle" id="themeToggle" title="تبديل الوضع المظلم"><i class="fas fa-moon"></i></button>
+        <button class="icon-btn" id="logoutBtn" title="تسجيل الخروج"><i class="fas fa-sign-out-alt"></i></button>
+      </div>
+    </header>
+
+    <!-- مساحة العمل -->
+    <section id="workspace">
+
+      <!-- بطاقة الرصيد -->
+      <div class="treasury-balance-card mb-4">
+        <div class="balance-label">الرصيد الحالي</div>
+        <div class="balance-amount" id="currentBalance">$0.00</div>
+        <div class="balance-actions">
+          <button class="btn" id="depositBtn"><i class="fas fa-arrow-down me-1"></i> إيداع</button>
+          <button class="btn" id="withdrawBtn"><i class="fas fa-arrow-up me-1"></i> سحب</button>
+          <button class="btn" id="transferBtn"><i class="fas fa-exchange-alt me-1"></i> تحويل</button>
+        </div>
+      </div>
+
+      <!-- الإحصائيات -->
+      <div class="treasury-stats-grid mb-4">
+        <div class="treasury-stat-item">
+          <span class="stat-icon deposit"><i class="fas fa-arrow-down"></i></span>
+          <div class="stat-number" id="totalDeposits">$0.00</div>
+          <div class="stat-label">إجمالي الإيداعات</div>
+        </div>
+        <div class="treasury-stat-item">
+          <span class="stat-icon withdraw"><i class="fas fa-arrow-up"></i></span>
+          <div class="stat-number" id="totalWithdrawals">$0.00</div>
+          <div class="stat-label">إجمالي السحوبات</div>
+        </div>
+        <div class="treasury-stat-item">
+          <span class="stat-icon transfer"><i class="fas fa-exchange-alt"></i></span>
+          <div class="stat-number" id="totalTransfers">$0.00</div>
+          <div class="stat-label">إجمالي التحويلات</div>
+        </div>
+        <div class="treasury-stat-item">
+          <span class="stat-icon" style="color:var(--color-primary);"><i class="fas fa-list"></i></span>
+          <div class="stat-number" id="transactionCount">0</div>
+          <div class="stat-label">عدد المعاملات</div>
+        </div>
+      </div>
+
+      <!-- سجل المعاملات -->
+      <div class="table-wrapper">
+        <div class="table-header">
+          <h5><i class="fas fa-history me-2"></i>سجل المعاملات</h5>
+          <div class="d-flex gap-2 flex-wrap">
+            <span class="filter-badge active" data-filter="all">الكل</span>
+            <span class="filter-badge" data-filter="deposit">إيداع</span>
+            <span class="filter-badge" data-filter="withdraw">سحب</span>
+            <span class="filter-badge" data-filter="transfer">تحويل</span>
+          </div>
+        </div>
+        <div id="transactionsContainer">
+          <div class="text-center text-muted py-4" id="noTransactions">
+            <i class="fas fa-wallet fa-2x mb-2 d-block"></i>
+            لا توجد معاملات حتى الآن
+          </div>
+          <div id="transactionsList" style="display:none;"></div>
+        </div>
+      </div>
+
+    </section>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- مودال إيداع / سحب / تحويل -->
+  <!-- ========================================================= -->
+  <div class="modal fade" id="treasuryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="treasuryModalTitle">إيداع</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="treasuryForm">
+            <input type="hidden" id="txType" value="deposit" />
+
+            <div class="form-group" id="sourceGroup">
+              <label for="txSource" class="form-label">المصدر <span class="text-danger">*</span></label>
+              <select class="form-select" id="txSource">
+                <option value="customer">من عميل</option>
+                <option value="transfer">تحويل داخلي</option>
+                <option value="external">خارجي</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="customerGroup" style="display:none;">
+              <label for="txCustomer" class="form-label">اختر العميل</label>
+              <select class="form-select" id="txCustomer">
+                <option value="">اختر عميل...</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="targetGroup" style="display:none;">
+              <label for="txTarget" class="form-label">الجهة المستلمة</label>
+              <select class="form-select" id="txTarget">
+                <option value="bank">حساب بنكي</option>
+                <option value="wallet">محفظة</option>
+                <option value="cash">كاش</option>
+                <option value="other">أخرى</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="txAmount" class="form-label">المبلغ ($) <span class="text-danger">*</span></label>
+              <input type="number" class="form-control" id="txAmount" step="0.01" required />
+            </div>
+
+            <div class="form-group">
+              <label for="txDate" class="form-label">التاريخ</label>
+              <input type="text" class="form-control" id="txDate" />
+            </div>
+
+            <div class="form-group">
+              <label for="txNote" class="form-label">ملاحظات</label>
+              <textarea class="form-control" id="txNote" rows="2"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-bs-dismiss="modal">إلغاء</button>
+          <button type="button" class="btn btn-primary" id="saveTxBtn">
+            <i class="fas fa-save me-2"></i>حفظ
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- Import Map & JavaScript -->
+  <!-- ========================================================= -->
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js",
+        "firebase/storage": "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js"
+      }
+    }
+  </script>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script type="module" src="assets/js/main.js"></script>
+  <script type="module" src="assets/js/pages/treasury.js"></script>
+
+</body>
+</html>
