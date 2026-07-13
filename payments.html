@@ -188,38 +188,39 @@
             <input type="hidden" id="paymentId" />
             <input type="hidden" id="oldAmount" />
 
-            <div class="form-group">
-              <label for="customerSelect" class="form-label">العميل <span class="text-danger">*</span></label>
-              <select class="form-select" id="customerSelect" required>
-                <option value="">اختر عميل...</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="amount" class="form-label">المبلغ ($) <span class="text-danger">*</span></label>
-              <input type="number" class="form-control" id="amount" step="0.01" required />
-            </div>
-            <div class="form-group">
-              <label for="method" class="form-label">طريقة الدفع <span class="text-danger">*</span></label>
-              <select class="form-select" id="method" required>
-                <option value="">اختر طريقة</option>
-                <option value="تحويل">تحويل</option>
-                <option value="محافظ">محافظ</option>
-                <option value="كاش">كاش</option>
-                <option value="تحويل بنكي">تحويل بنكي</option>
-                <option value="OKX">OKX</option>
-                <option value="AirTM">AirTM</option>
-                <option value="باي بال">باي بال</option>
-                <option value="إنستا باي">إنستا باي</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="paymentDate" class="form-label">تاريخ الدفع</label>
-              <input type="text" class="form-control" id="paymentDate" placeholder="اختر التاريخ" />
-            </div>
-            <div class="form-group">
-              <label for="paymentNotes" class="form-label">ملاحظات</label>
-              <textarea class="form-control" id="paymentNotes" rows="2"></textarea>
-            </div>
+ <!-- داخل مودال paymentModal -->
+<div class="form-group">
+  <label for="customerSelect" class="form-label">العميل <span class="text-danger">*</span></label>
+  <select class="form-select" id="customerSelect" required>
+    <option value="">اختر عميل...</option>
+  </select>
+</div>
+<div class="form-group">
+  <label for="amount" class="form-label">المبلغ ($) <span class="text-danger">*</span></label>
+  <input type="number" class="form-control" id="amount" step="0.01" required />
+</div>
+<div class="form-group">
+  <label for="method" class="form-label">طريقة الدفع <span class="text-danger">*</span></label>
+  <select class="form-select" id="method" required>
+    <option value="">اختر طريقة</option>
+    <option value="تحويل">تحويل</option>
+    <option value="محافظ">محافظ</option>
+    <option value="كاش">كاش</option>
+    <option value="تحويل بنكي">تحويل بنكي</option>
+    <option value="OKX">OKX</option>
+    <option value="AirTM">AirTM</option>
+    <option value="باي بال">باي بال</option>
+    <option value="إنستا باي">إنستا باي</option>
+  </select>
+</div>
+<div class="form-group">
+  <label for="paymentDate" class="form-label">تاريخ الدفع</label>
+  <input type="text" class="form-control" id="paymentDate" placeholder="اختر التاريخ" />
+</div>
+<div class="form-group">
+  <label for="paymentNotes" class="form-label">ملاحظات</label>
+  <textarea class="form-control" id="paymentNotes" rows="2"></textarea>
+</div>
           </form>
         </div>
         <div class="modal-footer">
