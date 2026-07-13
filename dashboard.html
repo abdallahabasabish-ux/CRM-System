@@ -4,16 +4,73 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>لوحة التحكم - نظام إدارة الأعمال</title>
-  
+
   <!-- Bootstrap 5 RTL -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet" />
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  
-  <!-- استيراد الأنماط الجديدة -->
+  <!-- الأنماط المخصصة -->
   <link rel="stylesheet" href="assets/css/style.css" />
+  <style>
+    /* تحسينات إضافية للوحة التحكم */
+    .stat-card .trend {
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .stat-card .trend.up { color: #28a745; }
+    .stat-card .trend.down { color: #dc3545; }
+    .stat-card .trend.neutral { color: #ffc107; }
+
+    .recent-payments-table td {
+      vertical-align: middle;
+    }
+    .recent-payments-table .payment-amount {
+      font-weight: 700;
+      color: var(--color-primary);
+    }
+    .recent-payments-table .payment-method {
+      font-size: 12px;
+      padding: 2px 10px;
+      border-radius: 20px;
+      background: var(--bg-input);
+      color: var(--text-muted);
+    }
+
+    /* تنسيق بطاقات الإحصائيات بشكل احترافي */
+    .stat-card .stat-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+    }
+    .stat-card .stat-icon.orange { background: rgba(255, 102, 0, 0.12); color: #ff6600; }
+    .stat-card .stat-icon.blue { background: rgba(13, 110, 253, 0.12); color: #0d6efd; }
+    .stat-card .stat-icon.green { background: rgba(40, 167, 69, 0.12); color: #28a745; }
+    .stat-card .stat-icon.purple { background: rgba(139, 92, 246, 0.12); color: #8b5cf6; }
+    .stat-card .stat-icon.red { background: rgba(220, 53, 69, 0.12); color: #dc3545; }
+    .stat-card .stat-icon.teal { background: rgba(32, 201, 151, 0.12); color: #20c997; }
+
+    /* صفوف التحميل المتلألئة */
+    .skeleton-row {
+      animation: shimmer 1.5s infinite;
+      background: linear-gradient(90deg, var(--bg-input) 25%, var(--border-color) 50%, var(--bg-input) 75%);
+      background-size: 200% 100%;
+      border-radius: 4px;
+      height: 20px;
+      margin: 4px 0;
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+  </style>
 </head>
 <body>
 
@@ -74,47 +131,119 @@
     <!-- مساحة العمل -->
     <section id="workspace">
 
-      <!-- بطاقات الإحصائيات -->
+      <!-- ===== بطاقات الإحصائيات ===== -->
       <div class="stats-grid">
         <div class="stat-card">
-          <div class="info"><h6>إجمالي العملاء</h6><h3 id="statCustomers">0</h3></div>
-          <div class="icon blue"><i class="fas fa-users"></i></div>
+          <div class="info">
+            <h6>إجمالي العملاء</h6>
+            <h3 id="statCustomers">0</h3>
+            <span class="trend neutral"><i class="fas fa-users"></i> نشط</span>
+          </div>
+          <div class="stat-icon blue"><i class="fas fa-users"></i></div>
         </div>
+
         <div class="stat-card">
-          <div class="info"><h6>الطلبات الجارية</h6><h3 id="statActiveOrders">0</h3></div>
-          <div class="icon yellow"><i class="fas fa-spinner"></i></div>
+          <div class="info">
+            <h6>الطلبات الجارية</h6>
+            <h3 id="statActiveOrders">0</h3>
+            <span class="trend neutral"><i class="fas fa-clock"></i> قيد التنفيذ</span>
+          </div>
+          <div class="stat-icon orange"><i class="fas fa-spinner"></i></div>
         </div>
+
         <div class="stat-card">
-          <div class="info"><h6>إجمالي المدفوعات</h6><h3 id="statPayments">$0</h3></div>
-          <div class="icon green"><i class="fas fa-credit-card"></i></div>
+          <div class="info">
+            <h6>إجمالي المدفوعات</h6>
+            <h3 id="statPayments">$0</h3>
+            <span class="trend up"><i class="fas fa-arrow-up"></i> +% (محدث)</span>
+          </div>
+          <div class="stat-icon green"><i class="fas fa-credit-card"></i></div>
         </div>
+
         <div class="stat-card">
-          <div class="info"><h6>الطلبات المكتملة</h6><h3 id="statCompleted">0</h3></div>
-          <div class="icon purple"><i class="fas fa-check-circle"></i></div>
+          <div class="info">
+            <h6>الطلبات المكتملة</h6>
+            <h3 id="statCompleted">0</h3>
+            <span class="trend up"><i class="fas fa-check-circle"></i> منجزة</span>
+          </div>
+          <div class="stat-icon purple"><i class="fas fa-check-circle"></i></div>
+        </div>
+
+        <!-- بطاقة إضافية: إجمالي الإيرادات -->
+        <div class="stat-card">
+          <div class="info">
+            <h6>الإيرادات الإجمالية</h6>
+            <h3 id="statRevenue">$0</h3>
+            <span class="trend up"><i class="fas fa-chart-line"></i> نمو</span>
+          </div>
+          <div class="stat-icon teal"><i class="fas fa-dollar-sign"></i></div>
+        </div>
+
+        <!-- بطاقة إضافية: عدد الدفعات -->
+        <div class="stat-card">
+          <div class="info">
+            <h6>عدد الدفعات</h6>
+            <h3 id="statPaymentsCount">0</h3>
+            <span class="trend neutral"><i class="fas fa-receipt"></i> مسجلة</span>
+          </div>
+          <div class="stat-icon red"><i class="fas fa-file-invoice"></i></div>
         </div>
       </div>
 
-      <!-- الرسوم البيانية -->
+      <!-- ===== الرسوم البيانية (3 أعمدة) ===== -->
       <div class="charts-grid">
         <div class="chart-card">
           <h5>توزيع الخدمات</h5>
-          <canvas id="servicesChart" height="200"></canvas>
+          <canvas id="servicesChart" height="180"></canvas>
         </div>
         <div class="chart-card">
           <h5>الطلبات الشهرية</h5>
-          <canvas id="ordersChart" height="200"></canvas>
+          <canvas id="ordersChart" height="180"></canvas>
+        </div>
+        <div class="chart-card">
+          <h5>المدفوعات (آخر 6 أشهر)</h5>
+          <canvas id="paymentsChart" height="180"></canvas>
         </div>
       </div>
 
-      <!-- جدول آخر العملاء -->
-      <div class="table-wrapper">
+      <!-- ===== جدول آخر الدفعات ===== -->
+      <div class="table-wrapper mt-4">
+        <div class="table-header">
+          <h5><i class="fas fa-credit-card me-2"></i>آخر المدفوعات</h5>
+          <a href="payments.html" class="btn btn-sm btn-accent">عرض الكل</a>
+        </div>
+        <div class="table-responsive">
+          <table class="table recent-payments-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>العميل</th>
+                <th>المبلغ</th>
+                <th>طريقة الدفع</th>
+                <th>التاريخ</th>
+              </tr>
+            </thead>
+            <tbody id="recentPaymentsBody">
+              <tr><td colspan="5" class="text-center text-muted py-3">جاري تحميل المدفوعات...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===== جدول آخر العملاء ===== -->
+      <div class="table-wrapper mt-4">
         <div class="table-header">
           <h5><i class="fas fa-user-plus me-2"></i>آخر العملاء</h5>
+          <a href="customers.html" class="btn btn-sm btn-accent">عرض الكل</a>
         </div>
         <div class="table-responsive">
           <table class="table">
-            <thead><tr><th>#</th><th>الاسم</th><th>الهاتف</th><th>المدفوع</th></tr></thead>
-            <tbody id="recentCustomers"><tr><td colspan="4" class="text-center text-muted">جاري تحميل العملاء...</td></tr></tbody>
+            <thead>
+              <tr><th>#</th><th>الاسم</th><th>الهاتف</th><th>المدفوع</th></tr>
+            </thead>
+            <tbody id="recentCustomers">
+              <tr><td colspan="4" class="text-center text-muted py-3">جاري تحميل العملاء...</td></tr>
+            </tbody>
           </table>
         </div>
       </div>
