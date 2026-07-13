@@ -1,7 +1,5 @@
 // =============================================================
-// invoices.js - النسخة المحسّنة النهائية
-// يدعم: اختيار العميل، عرض الطلبات، تحديد الطلبات، 
-// الشعار، الباركود، طباعة، PDF، واتساب
+// invoices.js - الإصدار النهائي مع الشعار والباركود
 // =============================================================
 import { onAuthStateChangedCallback, logoutUser } from '../auth.js';
 import { db } from '../firebase-config.js';
@@ -20,9 +18,6 @@ import {
   Timestamp
 } from 'firebase/firestore';
 
-// =============================================================
-// 1.  المتغيرات العامة
-// =============================================================
 let invoices = [];
 let customers = [];
 let orders = [];
@@ -33,9 +28,6 @@ let invoicePreviewModalInstance = null;
 let createInvoiceModalInstance = null;
 let currentInvoiceId = null;
 
-// =============================================================
-// 2.  دوال مساعدة (Utilities)
-// =============================================================
 function formatCurrency(amount, currency = '$') {
   if (amount === undefined || amount === null) return `${currency}0.00`;
   return `${currency}${amount.toFixed(2)}`;
@@ -77,20 +69,17 @@ function showToast(message, type = 'success') {
   }
 }
 
-// =============================================================
-// 3.  تحميل البيانات الأساسية (الإعدادات، العملاء، الخدمات)
-// =============================================================
 async function loadSettings() {
   try {
     const settingsDoc = await getDoc(doc(db, 'settings', 'general'));
     if (settingsDoc.exists()) {
       settings = settingsDoc.data();
     } else {
-      settings = { companyName: 'Abdallah Abas', companyLogo: '', currency: '$' };
+      settings = { companyName: 'شركتي', companyLogo: '', currency: '$' };
     }
   } catch (error) {
     console.error('Error loading settings:', error);
-    settings = { companyName: 'Abdallah Abas', companyLogo: '', currency: '$' };
+    settings = { companyName: 'شركتي', companyLogo: '', currency: '$' };
   }
 }
 
@@ -108,31 +97,24 @@ async function loadCustomersAndServices() {
   }
 }
 
-// =============================================================
-// 4.  تحميل طلبات العميل (للمودال)
-// =============================================================
 async function loadOrdersForCustomer(customerId) {
   const tbody = document.getElementById('customerOrdersBody');
   const container = document.getElementById('ordersContainer');
-
   if (!customerId) {
     tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">اختر عميلاً لعرض طلباته</td></tr>';
     container.style.display = 'none';
     return;
   }
-
   try {
     const q = query(collection(db, 'orders'), where('customerId', '==', customerId));
     const snap = await getDocs(q);
     orders = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
     if (orders.length === 0) {
       tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">لا توجد طلبات لهذا العميل</td></tr>';
       container.style.display = 'block';
       updateSelectedSummary();
       return;
     }
-
     let html = '';
     orders.forEach((order) => {
       const service = services.find(s => s.id === order.serviceId);
@@ -154,8 +136,6 @@ async function loadOrdersForCustomer(customerId) {
     });
     tbody.innerHTML = html;
     container.style.display = 'block';
-
-    // ربط أحداث الـ checkboxes
     document.querySelectorAll('.order-checkbox').forEach(cb => {
       cb.addEventListener('change', updateSelectedSummary);
     });
@@ -163,7 +143,6 @@ async function loadOrdersForCustomer(customerId) {
       document.querySelectorAll('.order-checkbox').forEach(cb => cb.checked = this.checked);
       updateSelectedSummary();
     });
-
     updateSelectedSummary();
   } catch (error) {
     console.error('Error loading orders:', error);
@@ -181,9 +160,6 @@ function updateSelectedSummary() {
   document.getElementById('selectedTotal').textContent = formatCurrency(total);
 }
 
-// =============================================================
-// 5.  تعبئة قائمة العملاء في المودال
-// =============================================================
 function populateCustomerSelect() {
   const select = document.getElementById('customerSelectInvoice');
   if (!select) return;
@@ -196,15 +172,11 @@ function populateCustomerSelect() {
   });
 }
 
-// =============================================================
-// 6.  المصادقة والتهيئة العامة
-// =============================================================
 onAuthStateChangedCallback(async (user) => {
   if (!user) {
     window.location.href = '../login.html';
     return;
   }
-  // تحديث بيانات المستخدم في الـ Sidebar
   const sidebarUserName = document.getElementById('sidebarUserName');
   const sidebarUserEmail = document.getElementById('sidebarUserEmail');
   const sidebarAvatar = document.getElementById('sidebarAvatar');
@@ -213,16 +185,12 @@ onAuthStateChangedCallback(async (user) => {
   if (sidebarAvatar) {
     sidebarAvatar.textContent = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
   }
-
   await loadSettings();
   await loadCustomersAndServices();
   listenToInvoices();
   populateCustomerSelect();
 });
 
-// =============================================================
-// 7.  تسجيل الخروج وتبديل الوضع
-// =============================================================
 document.getElementById('logoutBtn')?.addEventListener('click', async () => {
   await logoutUser();
   window.location.href = '../login.html';
@@ -250,17 +218,15 @@ if (themeToggle) {
   });
 }
 
-// تبديل Sidebar للجوال
 const sidebarToggle = document.getElementById('sidebarToggle');
 const sidebar = document.getElementById('sidebar');
+const overlay = document.getElementById('sidebar-overlay');
 if (sidebarToggle && sidebar) {
   sidebarToggle.addEventListener('click', () => {
     sidebar.classList.toggle('active');
-    const overlay = document.getElementById('sidebar-overlay');
     if (overlay) overlay.classList.toggle('active');
   });
 }
-const overlay = document.getElementById('sidebar-overlay');
 if (overlay) {
   overlay.addEventListener('click', () => {
     sidebar.classList.remove('active');
@@ -268,16 +234,11 @@ if (overlay) {
   });
 }
 
-// =============================================================
-// 8.  قراءة الفواتير (Realtime)
-// =============================================================
 function listenToInvoices() {
   const q = query(collection(db, 'invoices'), orderBy('createdAt', 'desc'));
-
   if (invoicesListener) {
     invoicesListener();
   }
-
   invoicesListener = onSnapshot(q, (snapshot) => {
     if (snapshot.empty) {
       invoices = [];
@@ -285,13 +246,11 @@ function listenToInvoices() {
       document.getElementById('resultCount').textContent = 'عرض 0 فاتورة';
       return;
     }
-
     invoices = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
       createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt || null
     }));
-
     const searchTerm = document.getElementById('searchInput')?.value.trim().toLowerCase() || '';
     const filtered = searchTerm ? filterInvoices(searchTerm) : invoices;
     renderTable(filtered);
@@ -302,24 +261,18 @@ function listenToInvoices() {
   });
 }
 
-// =============================================================
-// 9.  عرض الجدول
-// =============================================================
 function renderTable(data) {
   const tbody = document.getElementById('invoicesTableBody');
   if (!tbody) return;
-
   if (!data || data.length === 0) {
     tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">لا يوجد فواتير</td></tr>`;
     return;
   }
-
   let html = '';
   data.forEach((inv) => {
     const customer = customers.find(c => c.id === inv.customerId);
     const customerName = customer ? customer.name : 'غير معروف';
     const statusBadge = inv.status === 'مدفوعة' ? 'badge bg-success' : 'badge bg-warning text-dark';
-
     html += `
       <tr>
         <td><strong>#${inv.invoiceNumber || 'N/A'}</strong></td>
@@ -338,10 +291,7 @@ function renderTable(data) {
       </tr>
     `;
   });
-
   tbody.innerHTML = html;
-
-  // ربط الأحداث
   tbody.querySelectorAll('.view-btn').forEach(btn => {
     btn.addEventListener('click', () => viewInvoice(btn.dataset.id));
   });
@@ -350,9 +300,6 @@ function renderTable(data) {
   });
 }
 
-// =============================================================
-// 10. البحث
-// =============================================================
 function filterInvoices(term) {
   return invoices.filter(inv => {
     const customer = customers.find(c => c.id === inv.customerId);
@@ -369,22 +316,16 @@ document.getElementById('searchInput')?.addEventListener('input', (e) => {
   document.getElementById('resultCount').textContent = `عرض ${filtered.length} فاتورة`;
 });
 
-// =============================================================
-// 11. مودال إنشاء فاتورة جديدة (الأحداث)
-// =============================================================
 document.getElementById('createInvoiceBtn')?.addEventListener('click', () => {
   document.getElementById('ordersContainer').style.display = 'none';
   document.getElementById('customerOrdersBody').innerHTML =
     '<tr><td colspan="5" class="text-center text-muted">اختر عميلاً لعرض طلباته</td></tr>';
   document.getElementById('selectedCount').textContent = '0';
   document.getElementById('selectedTotal').textContent = '$0.00';
-
   populateCustomerSelect();
-
   const customerSelect = document.getElementById('customerSelectInvoice');
   customerSelect.removeEventListener('change', handleCustomerChange);
   customerSelect.addEventListener('change', handleCustomerChange);
-
   if (createInvoiceModalInstance) createInvoiceModalInstance.show();
 });
 
@@ -393,22 +334,17 @@ function handleCustomerChange(e) {
   loadOrdersForCustomer(customerId);
 }
 
-// =============================================================
-// 12. إنشاء الفاتورة (حفظ)
-// =============================================================
 document.getElementById('confirmCreateInvoiceBtn')?.addEventListener('click', async () => {
   const customerId = document.getElementById('customerSelectInvoice').value;
   if (!customerId) {
     showToast('الرجاء اختيار عميل', 'warning');
     return;
   }
-
   const selectedCheckboxes = document.querySelectorAll('.order-checkbox:checked');
   if (selectedCheckboxes.length === 0) {
     showToast('الرجاء اختيار طلب واحد على الأقل', 'warning');
     return;
   }
-
   const selectedOrders = [];
   let totalAmount = 0;
   selectedCheckboxes.forEach(cb => {
@@ -418,13 +354,10 @@ document.getElementById('confirmCreateInvoiceBtn')?.addEventListener('click', as
       totalAmount += order.total || 0;
     }
   });
-
-  // إنشاء رقم فاتورة تلقائي
   const now = new Date();
   const dateStr = now.toISOString().slice(0,10).replace(/-/g,'');
   const count = invoices.length + 1;
   const invoiceNumber = `INV-${dateStr}-${String(count).padStart(3,'0')}`;
-
   const items = selectedOrders.map(order => {
     const service = services.find(s => s.id === order.serviceId);
     const desc = service ? service.name : 'خدمة غير معروفة';
@@ -433,9 +366,7 @@ document.getElementById('confirmCreateInvoiceBtn')?.addEventListener('click', as
       amount: order.total || 0
     };
   });
-
   const customer = customers.find(c => c.id === customerId);
-
   const invoiceData = {
     invoiceNumber,
     customerId,
@@ -449,11 +380,9 @@ document.getElementById('confirmCreateInvoiceBtn')?.addEventListener('click', as
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
-
   const saveBtn = document.getElementById('confirmCreateInvoiceBtn');
   saveBtn.disabled = true;
   saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الإنشاء...';
-
   try {
     await addDoc(collection(db, 'invoices'), invoiceData);
     showToast('تم إنشاء الفاتورة بنجاح', 'success');
@@ -467,9 +396,6 @@ document.getElementById('confirmCreateInvoiceBtn')?.addEventListener('click', as
   }
 });
 
-// =============================================================
-// 13. عرض الفاتورة (مع الشعار والباركود)
-// =============================================================
 async function viewInvoice(id) {
   const invoice = invoices.find(inv => inv.id === id);
   if (!invoice) {
@@ -477,14 +403,13 @@ async function viewInvoice(id) {
     return;
   }
   currentInvoiceId = id;
-
   const customer = customers.find(c => c.id === invoice.customerId);
   const customerName = customer ? customer.name : 'غير معروف';
   const customerPhone = customer ? customer.phone : '';
   const customerAddress = customer ? customer.address : '';
-
-const logoHtml = `<img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEg_uOBH-XBPOdfEkh6JSeBwU4FOCTxJPkb2H4NgJhVj6DtsyzJxzITcOdbObjW3_Q1bUpq8tnV86m4Q5kHhitUCM5-J-OzBGjAdvCj2By0iBQ_FmFQAR6ytlFFd54kdT0xf9ibZnwzUwUtARA3mCi8Kj44NJQxff5jbvvq6h9SwRFLWyKw3qNZTeqWGcfJo/s200/a%20(1).png" alt="شعار الشركة" style="max-height:60px; max-width:150px; object-fit:contain;" />`;
-
+  const logoHtml = settings.companyLogo
+    ? `<img src="${settings.companyLogo}" alt="شعار الشركة" class="logo" />`
+    : `<div style="font-size:24px;font-weight:bold;color:#ff6600;">${settings.companyName || 'شركتي'}</div>`;
   const html = `
     <div id="invoice-print-area" class="invoice-preview-area">
       <div class="header">
@@ -500,61 +425,36 @@ const logoHtml = `<img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl
           <div style="font-size:14px;color:#666;">التاريخ: ${formatDate(invoice.createdAt)}</div>
         </div>
       </div>
-
       <div class="customer-info">
         <div style="font-weight:bold;">بيانات العميل</div>
         <div style="font-size:14px;color:#333;">${escapeHtml(customerName)}</div>
         <div style="font-size:14px;color:#333;">${escapeHtml(customerPhone)}</div>
         <div style="font-size:14px;color:#333;">${escapeHtml(customerAddress)}</div>
       </div>
-
       <table>
-        <thead>
-          <tr>
-            <th style="width:70%;">البيان</th>
-            <th style="width:30%;text-align:center;">المبلغ</th>
-          </tr>
-        </thead>
+        <thead><tr><th style="width:70%;">البيان</th><th style="width:30%;text-align:center;">المبلغ</th></tr></thead>
         <tbody>
           ${invoice.items?.map(item => `
             <tr>
               <td>${escapeHtml(item.description)}</td>
               <td style="text-align:center;">${settings.currency || '$'} ${item.amount?.toFixed(2) || '0.00'}</td>
             </tr>
-          `).join('') || `
-            <tr><td colspan="2" class="text-center">لا توجد عناصر</td></tr>
-          `}
+          `).join('') || `<tr><td colspan="2" class="text-center">لا توجد عناصر</td></tr>`}
         </tbody>
         <tfoot>
-          <tr>
-            <td style="font-weight:bold;">الإجمالي</td>
-            <td style="text-align:center;font-weight:bold;">${settings.currency || '$'} ${invoice.total?.toFixed(2) || '0.00'}</td>
-          </tr>
-          <tr>
-            <td style="font-weight:bold;">المدفوع</td>
-            <td style="text-align:center;font-weight:bold;">${settings.currency || '$'} ${invoice.paid?.toFixed(2) || '0.00'}</td>
-          </tr>
-          <tr>
-            <td style="font-weight:bold;color:#d9534f;">المتبقي</td>
-            <td style="text-align:center;font-weight:bold;color:#d9534f;">${settings.currency || '$'} ${invoice.balance?.toFixed(2) || '0.00'}</td>
-          </tr>
+          <tr><td style="font-weight:bold;">الإجمالي</td><td style="text-align:center;font-weight:bold;">${settings.currency || '$'} ${invoice.total?.toFixed(2) || '0.00'}</td></tr>
+          <tr><td style="font-weight:bold;">المدفوع</td><td style="text-align:center;font-weight:bold;">${settings.currency || '$'} ${invoice.paid?.toFixed(2) || '0.00'}</td></tr>
+          <tr><td style="font-weight:bold;color:#d9534f;">المتبقي</td><td style="text-align:center;font-weight:bold;color:#d9534f;">${settings.currency || '$'} ${invoice.balance?.toFixed(2) || '0.00'}</td></tr>
         </tfoot>
       </table>
-
       <div class="qrcode-container">
         <div id="qrcode-placeholder" style="width:120px;height:120px;background:#fff;border:1px solid #ddd;padding:5px;"></div>
       </div>
-
-      <div class="footer">
-        ${settings.companyName || ''} - شكراً لثقتكم بنا
-      </div>
+      <div class="footer">${settings.companyName || ''} - شكراً لثقتكم بنا</div>
     </div>
   `;
-
   document.getElementById('invoicePreviewBody').innerHTML = html;
   if (invoicePreviewModalInstance) invoicePreviewModalInstance.show();
-
-  // إنشاء الباركود بعد عرض المودال مباشرة
   setTimeout(() => {
     const qrElement = document.getElementById('qrcode-placeholder');
     if (qrElement && typeof QRCode !== 'undefined') {
@@ -571,31 +471,15 @@ const logoHtml = `<img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl
   }, 300);
 }
 
-// =============================================================
-// 14. طباعة، تحميل PDF، واتساب
-// =============================================================
 document.getElementById('printInvoiceBtn')?.addEventListener('click', () => {
   const content = document.getElementById('invoice-print-area');
   if (!content) return;
   const win = window.open('', '_blank');
   win.document.write(`
-    <html>
-      <head>
-        <title>فاتورة</title>
-        <style>
-          body { font-family: 'Almarai', sans-serif; direction: rtl; padding: 20px; }
-          .invoice-preview-area { max-width: 100%; }
-          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ff6600; padding-bottom: 15px; margin-bottom: 20px; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-          th, td { border: 1px solid #ddd; padding: 10px; text-align: right; }
-          th { background: #f8f9fa; }
-          .qrcode-container { display: flex; justify-content: flex-end; margin-top: 10px; }
-          .footer { text-align: center; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 10px; margin-top: 20px; }
-          .logo { max-height: 60px; max-width: 150px; object-fit: contain; }
-        </style>
-      </head>
-      <body>${content.innerHTML}</body>
-    </html>
+    <html><head><title>فاتورة</title>
+    <style>body{font-family:'Almarai',sans-serif;direction:rtl;padding:20px;} .invoice-preview-area{max-width:100%;} .header{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #ff6600;padding-bottom:15px;margin-bottom:20px;} table{width:100%;border-collapse:collapse;margin-bottom:20px;} th,td{border:1px solid #ddd;padding:10px;text-align:right;} th{background:#f8f9fa;} .qrcode-container{display:flex;justify-content:flex-end;margin-top:10px;} .footer{text-align:center;font-size:12px;color:#999;border-top:1px solid #eee;padding-top:10px;margin-top:20px;} .logo{max-height:60px;max-width:150px;object-fit:contain;}
+    </style>
+    </head><body>${content.innerHTML}</body></html>
   `);
   win.document.close();
   win.print();
@@ -603,10 +487,7 @@ document.getElementById('printInvoiceBtn')?.addEventListener('click', () => {
 
 document.getElementById('downloadPdfBtn')?.addEventListener('click', async () => {
   const element = document.getElementById('invoice-print-area');
-  if (!element) {
-    showToast('لا توجد فاتورة للتحميل', 'warning');
-    return;
-  }
+  if (!element) { showToast('لا توجد فاتورة للتحميل', 'warning'); return; }
   try {
     const canvas = await html2canvas(element, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
     const imgData = canvas.toDataURL('image/png');
@@ -632,13 +513,9 @@ document.getElementById('shareWhatsappBtn')?.addEventListener('click', () => {
   window.open(url, '_blank');
 });
 
-// =============================================================
-// 15. حذف فاتورة
-// =============================================================
 async function confirmDelete(id) {
   const invoice = invoices.find(inv => inv.id === id);
   if (!invoice) return;
-
   const result = await Swal.fire({
     title: 'هل أنت متأكد؟',
     text: `سيتم حذف الفاتورة #${invoice.invoiceNumber} نهائيًا.`,
@@ -649,7 +526,6 @@ async function confirmDelete(id) {
     confirmButtonText: 'نعم، احذف',
     cancelButtonText: 'إلغاء'
   });
-
   if (result.isConfirmed) {
     try {
       await deleteDoc(doc(db, 'invoices', id));
@@ -661,9 +537,6 @@ async function confirmDelete(id) {
   }
 }
 
-// =============================================================
-// 16. تهيئة المودالات
-// =============================================================
 const previewModal = document.getElementById('invoicePreviewModal');
 if (previewModal) {
   invoicePreviewModalInstance = new bootstrap.Modal(previewModal);
@@ -673,4 +546,4 @@ if (createModal) {
   createInvoiceModalInstance = new bootstrap.Modal(createModal);
 }
 
-console.log('✅ Invoices.js loaded successfully (Professional version)');
+console.log('✅ Invoices.js loaded successfully');
