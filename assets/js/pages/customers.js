@@ -3,7 +3,6 @@ import { db } from '../firebase-config.js';
 import {
   collection,
   addDoc,
-  getDocs,
   doc,
   updateDoc,
   deleteDoc,
@@ -19,9 +18,6 @@ let customers = [];
 let editingId = null;
 let customersListener = null;
 
-// Bootstrap Modal (سيتم تهيئته لاحقًا)
-let customerModalInstance = null;
-
 // ============================
 // 1. المصادقة
 // ============================
@@ -31,18 +27,22 @@ onAuthStateChangedCallback((user) => {
     return;
   }
   // تحديث بيانات المستخدم في الـ Sidebar
-  document.getElementById('sidebarUserName').textContent = user.displayName || user.email;
-  document.getElementById('sidebarUserEmail').textContent = user.email;
-  document.getElementById('sidebarAvatar').textContent = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
+  const sidebarUserName = document.getElementById('sidebarUserName');
+  const sidebarUserEmail = document.getElementById('sidebarUserEmail');
+  const sidebarAvatar = document.getElementById('sidebarAvatar');
+  if (sidebarUserName) sidebarUserName.textContent = user.displayName || user.email;
+  if (sidebarUserEmail) sidebarUserEmail.textContent = user.email;
+  if (sidebarAvatar) {
+    sidebarAvatar.textContent = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
+  }
   
-  // بدء الاستماع للعملاء بعد تسجيل الدخول
   listenToCustomers();
 });
 
 // ============================
 // 2. تسجيل الخروج وتبديل الوضع
 // ============================
-document.getElementById('logoutBtn').addEventListener('click', async () => {
+document.getElementById('logoutBtn')?.addEventListener('click', async () => {
   await logoutUser();
   window.location.href = '../login.html';
 });
@@ -53,30 +53,46 @@ const htmlElement = document.documentElement;
 const savedTheme = localStorage.getItem('theme') || 'light';
 if (savedTheme === 'dark') {
   htmlElement.setAttribute('data-theme', 'dark');
-  themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+  if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
 }
-themeToggle.addEventListener('click', () => {
-  const currentTheme = htmlElement.getAttribute('data-theme');
-  if (currentTheme === 'dark') {
-    htmlElement.removeAttribute('data-theme');
-    localStorage.setItem('theme', 'light');
-    themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
-  } else {
-    htmlElement.setAttribute('data-theme', 'dark');
-    localStorage.setItem('theme', 'dark');
-    themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
-  }
-});
+if (themeToggle) {
+  themeToggle.addEventListener('click', () => {
+    const currentTheme = htmlElement.getAttribute('data-theme');
+    if (currentTheme === 'dark') {
+      htmlElement.removeAttribute('data-theme');
+      localStorage.setItem('theme', 'light');
+      themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+    } else {
+      htmlElement.setAttribute('data-theme', 'dark');
+      localStorage.setItem('theme', 'dark');
+      themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+    }
+  });
+}
 
 // تبديل Sidebar للشاشات الصغيرة
-document.getElementById('sidebarToggle')?.addEventListener('click', () => {
-  document.getElementById('sidebar').classList.toggle('open');
-});
+const sidebarToggle = document.getElementById('sidebarToggle');
+const sidebar = document.getElementById('sidebar');
+if (sidebarToggle && sidebar) {
+  sidebarToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('active');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (overlay) overlay.classList.toggle('active');
+  });
+}
+const overlay = document.getElementById('sidebar-overlay');
+if (overlay) {
+  overlay.addEventListener('click', () => {
+    sidebar.classList.remove('active');
+    overlay.classList.remove('active');
+  });
+}
 
 // ============================
 // 3. تهيئة Modal
 // ============================
 const modalElement = document.getElementById('customerModal');
+let customerModalInstance = null;
 if (modalElement) {
   customerModalInstance = new bootstrap.Modal(modalElement);
 }
@@ -125,8 +141,7 @@ function listenToCustomers() {
       ...doc.data()
     }));
 
-    // تطبيق البحث الحالي (إن وجد)
-    const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
+    const searchTerm = document.getElementById('searchInput')?.value.trim().toLowerCase() || '';
     const filtered = searchTerm ? filterCustomers(searchTerm) : customers;
     renderTable(filtered);
     document.getElementById('resultCount').textContent = `عرض ${filtered.length} عميل`;
@@ -175,7 +190,6 @@ function renderTable(data) {
 
   tbody.innerHTML = html;
 
-  // ربط أحداث الأزرار
   tbody.querySelectorAll('.edit-btn').forEach(btn => {
     btn.addEventListener('click', () => openEditModal(btn.dataset.id));
   });
@@ -184,7 +198,6 @@ function renderTable(data) {
   });
 }
 
-// دالة لحماية من هجمات XSS
 function escapeHtml(text) {
   if (!text) return '';
   const div = document.createElement('div');
@@ -202,7 +215,7 @@ function filterCustomers(term) {
   );
 }
 
-document.getElementById('searchInput').addEventListener('input', (e) => {
+document.getElementById('searchInput')?.addEventListener('input', (e) => {
   const term = e.target.value.trim().toLowerCase();
   const filtered = term ? filterCustomers(term) : customers;
   renderTable(filtered);
@@ -212,12 +225,12 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
 // ============================
 // 8. فتح مودال الإضافة
 // ============================
-document.getElementById('addCustomerBtn').addEventListener('click', () => {
+document.getElementById('addCustomerBtn')?.addEventListener('click', () => {
   editingId = null;
   document.getElementById('modalTitle').textContent = 'إضافة عميل جديد';
   document.getElementById('customerForm').reset();
   document.getElementById('customerId').value = '';
-  customerModalInstance.show();
+  if (customerModalInstance) customerModalInstance.show();
 });
 
 // ============================
@@ -242,13 +255,13 @@ function openEditModal(id) {
   document.getElementById('address').value = customer.address || '';
   document.getElementById('notes').value = customer.notes || '';
   
-  customerModalInstance.show();
+  if (customerModalInstance) customerModalInstance.show();
 }
 
 // ============================
 // 10. حفظ البيانات (إضافة / تعديل)
 // ============================
-document.getElementById('saveCustomerBtn').addEventListener('click', async () => {
+document.getElementById('saveCustomerBtn')?.addEventListener('click', async () => {
   const name = document.getElementById('name').value.trim();
   const phone = document.getElementById('phone').value.trim();
   
@@ -276,18 +289,16 @@ document.getElementById('saveCustomerBtn').addEventListener('click', async () =>
 
   try {
     if (id) {
-      // تعديل
       await updateDoc(doc(db, 'customers', id), data);
       showToast('تم تحديث العميل بنجاح', 'success');
     } else {
-      // إضافة
       data.createdAt = new Date().toISOString();
       data.totalPaid = 0;
       data.balance = 0;
       await addDoc(collection(db, 'customers'), data);
       showToast('تم إضافة العميل بنجاح', 'success');
     }
-    customerModalInstance.hide();
+    if (customerModalInstance) customerModalInstance.hide();
   } catch (error) {
     console.error('Error saving customer:', error);
     showToast('حدث خطأ أثناء الحفظ', 'error');
@@ -327,10 +338,9 @@ async function confirmDelete(id) {
 }
 
 // ============================
-// 12. إغلاق المودال عند الضغط على Esc أو خارجه
+// 12. إعادة تعيين النموذج عند الإغلاق
 // ============================
 modalElement?.addEventListener('hidden.bs.modal', () => {
-  // إعادة تعيين النموذج عند الإغلاق
   document.getElementById('customerForm').reset();
   document.getElementById('customerId').value = '';
 });
