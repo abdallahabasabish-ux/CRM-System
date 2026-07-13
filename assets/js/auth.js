@@ -1,34 +1,30 @@
+import { auth } from './firebase-config.js';
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
+
 /**
  * تسجيل الدخول
- * @param {string} email
- * @param {string} password
- * @returns {Promise}
  */
-function loginUser(email, password) {
-  return auth.signInWithEmailAndPassword(email, password);
+export function loginUser(email, password) {
+  return signInWithEmailAndPassword(auth, email, password);
 }
 
 /**
  * تسجيل الخروج
- * @returns {Promise}
  */
-function logoutUser() {
-  return auth.signOut();
+export function logoutUser() {
+  return signOut(auth);
 }
 
 /**
  * مراقبة حالة المستخدم
- * @param {Function} callback - دالة تستقبل المستخدم أو null
  */
-function onAuthStateChanged(callback) {
-  auth.onAuthStateChanged(user => {
-    callback(user);
-  });
+export function onAuthStateChangedCallback(callback) {
+  return onAuthStateChanged(auth, callback);
 }
 
 /**
- * الحصول على المستخدم الحالي (مزامن)
+ * الحصول على المستخدم الحالي
  */
-function getCurrentUser() {
+export function getCurrentUser() {
   return auth.currentUser;
 }
