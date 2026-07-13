@@ -11,6 +11,10 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Toastify -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+
   <!-- الأنماط المخصصة -->
   <link rel="stylesheet" href="assets/css/style.css" />
 
@@ -26,21 +30,6 @@
     .stat-card .trend.down { color: #dc3545; }
     .stat-card .trend.neutral { color: #ffc107; }
 
-    .recent-payments-table td {
-      vertical-align: middle;
-    }
-    .recent-payments-table .payment-amount {
-      font-weight: 700;
-      color: var(--color-primary);
-    }
-    .recent-payments-table .payment-method {
-      font-size: 12px;
-      padding: 2px 10px;
-      border-radius: 20px;
-      background: var(--bg-input);
-      color: var(--text-muted);
-    }
-
     .stat-card .stat-icon {
       width: 50px;
       height: 50px;
@@ -50,25 +39,36 @@
       justify-content: center;
       font-size: 22px;
     }
-    .stat-card .stat-icon.orange { background: rgba(255, 102, 0, 0.12); color: #ff6600; }
     .stat-card .stat-icon.blue { background: rgba(13, 110, 253, 0.12); color: #0d6efd; }
     .stat-card .stat-icon.green { background: rgba(40, 167, 69, 0.12); color: #28a745; }
+    .stat-card .stat-icon.orange { background: rgba(255, 102, 0, 0.12); color: #ff6600; }
     .stat-card .stat-icon.purple { background: rgba(139, 92, 246, 0.12); color: #8b5cf6; }
     .stat-card .stat-icon.red { background: rgba(220, 53, 69, 0.12); color: #dc3545; }
     .stat-card .stat-icon.teal { background: rgba(32, 201, 151, 0.12); color: #20c997; }
+    .stat-card .stat-icon.gold { background: rgba(255, 193, 7, 0.12); color: #ffc107; }
 
-    /* صفوف التحميل المتلألئة */
-    .skeleton-row {
-      animation: shimmer 1.5s infinite;
-      background: linear-gradient(90deg, var(--bg-input) 25%, var(--border-color) 50%, var(--bg-input) 75%);
-      background-size: 200% 100%;
-      border-radius: 4px;
-      height: 20px;
-      margin: 4px 0;
+    .payment-method-badge {
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      background: var(--bg-input);
+      color: var(--text-muted);
+      border: 1px solid var(--border-color);
+      display: inline-block;
     }
-    @keyframes shimmer {
-      0% { background-position: -200% 0; }
-      100% { background-position: 200% 0; }
+    .payment-amount {
+      font-weight: 700;
+      color: var(--color-primary);
+    }
+
+    .recent-payments-table td {
+      vertical-align: middle;
+    }
+
+    .treasury-section {
+      border-top: 2px solid var(--border-color);
+      padding-top: 24px;
+      margin-top: 8px;
     }
   </style>
 </head>
@@ -80,20 +80,13 @@
   <div id="sidebar-overlay" onclick="document.getElementById('sidebar').classList.remove('active')"></div>
 
   <!-- ========================================================= -->
-  <!-- القائمة الجانبية (Sidebar) - تم إصلاح هيكلها -->
+  <!-- القائمة الجانبية (موحدة) -->
   <!-- ========================================================= -->
   <aside id="sidebar">
-    <!-- رأس القائمة مع الشعار -->
     <div class="sidebar-header">
-      <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEg_uOBH-XBPOdfEkh6JSeBwU4FOCTxJPkb2H4NgJhVj6DtsyzJxzITcOdbObjW3_Q1bUpq8tnV86m4Q5kHhitUCM5-J-OzBGjAdvCj2By0iBQ_FmFQAR6ytlFFd54kdT0xf9ibZnwzUwUtARA3mCi8Kj44NJQxff5jbvvq6h9SwRFLWyKw3qNZTeqWGcfJo/s200/a%20(1).png" 
-           alt="شعار الشركة" 
-           style="height:40px; width:auto; border-radius:4px; object-fit:contain;" />
-      <div class="brand-text" style="margin-right:10px; font-size:18px; font-weight:700; color:var(--text-white);">
-        نظام <span style="color:#ff6600;">الإدارة</span>
-      </div>
+      <div class="logo-icon">A</div>
+      <div class="brand-text">نظام <span>الإدارة</span></div>
     </div>
-
-    <!-- قائمة الروابط -->
     <ul class="sidebar-menu">
       <li class="menu-label">القائمة الرئيسية</li>
       <li><a href="dashboard.html" class="menu-item active"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> لوحة القيادة</a></li>
@@ -104,11 +97,10 @@
       <li><a href="payments.html" class="menu-item"><svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg> المدفوعات</a></li>
       <li><a href="invoices.html" class="menu-item"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 15.5l-1.5-1.5-1.5 1.5L7.5 17l-1.5 1.5L4.5 17l1.5-1.5L4.5 14l1.5-1.5L4.5 11l1.5-1.5L4.5 8l1.5-1.5L4.5 5l1.5-1.5L7.5 5l1.5-1.5L10.5 5l1.5-1.5L13.5 5l1.5-1.5L16.5 5l1.5-1.5L19.5 5l-1.5 1.5L19.5 8l-1.5 1.5L19.5 11l-1.5 1.5L19.5 14l-1.5 1.5L19.5 17l-1.5 1.5L19.5 20l-1.5-1.5L16.5 20l-1.5-1.5L13.5 20l-1.5-1.5L12 18.5z"/></svg> الفواتير</a></li>
       <li><a href="reports.html" class="menu-item"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg> التقارير</a></li>
+      <li><a href="treasury.html" class="menu-item"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg> الخزينة</a></li>
       <li class="menu-label">النظام</li>
       <li><a href="settings.html" class="menu-item"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .43-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.49-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg> الإعدادات</a></li>
     </ul>
-
-    <!-- تذييل القائمة مع بيانات المستخدم -->
     <div class="sidebar-footer">
       <div class="user-card">
         <div class="user-avatar" id="sidebarAvatar">م</div>
@@ -140,7 +132,7 @@
     <!-- مساحة العمل -->
     <section id="workspace">
 
-      <!-- ===== بطاقات الإحصائيات ===== -->
+      <!-- ===== بطاقات الإحصائيات الرئيسية ===== -->
       <div class="stats-grid">
         <div class="stat-card">
           <div class="info">
@@ -164,7 +156,7 @@
           <div class="info">
             <h6>إجمالي المدفوعات</h6>
             <h3 id="statPayments">$0</h3>
-            <span class="trend up"><i class="fas fa-arrow-up"></i> +% (محدث)</span>
+            <span class="trend up"><i class="fas fa-arrow-up"></i> محدث</span>
           </div>
           <div class="stat-icon green"><i class="fas fa-credit-card"></i></div>
         </div>
@@ -178,7 +170,6 @@
           <div class="stat-icon purple"><i class="fas fa-check-circle"></i></div>
         </div>
 
-        <!-- بطاقة إضافية: إجمالي الإيرادات -->
         <div class="stat-card">
           <div class="info">
             <h6>الإيرادات الإجمالية</h6>
@@ -188,19 +179,53 @@
           <div class="stat-icon teal"><i class="fas fa-dollar-sign"></i></div>
         </div>
 
-        <!-- بطاقة إضافية: عدد الدفعات -->
         <div class="stat-card">
           <div class="info">
             <h6>عدد الدفعات</h6>
             <h3 id="statPaymentsCount">0</h3>
             <span class="trend neutral"><i class="fas fa-receipt"></i> مسجلة</span>
           </div>
-          <div class="stat-icon red"><i class="fas fa-file-invoice"></i></div>
+          <div class="stat-icon gold"><i class="fas fa-file-invoice"></i></div>
         </div>
       </div>
 
-      <!-- ===== الرسوم البيانية (3 أعمدة) ===== -->
-      <div class="charts-grid">
+      <!-- ===== بطاقات الخزينة ===== -->
+      <div class="treasury-section">
+        <h6 class="text-muted mb-3"><i class="fas fa-wallet me-2"></i>الخزينة الشخصية</h6>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="info">
+              <h6>رصيد الخزينة</h6>
+              <h3 id="treasuryBalance">$0.00</h3>
+            </div>
+            <div class="stat-icon blue"><i class="fas fa-wallet"></i></div>
+          </div>
+          <div class="stat-card">
+            <div class="info">
+              <h6>إجمالي الإيداعات</h6>
+              <h3 id="treasuryDeposits">$0.00</h3>
+            </div>
+            <div class="stat-icon green"><i class="fas fa-arrow-down"></i></div>
+          </div>
+          <div class="stat-card">
+            <div class="info">
+              <h6>إجمالي السحوبات</h6>
+              <h3 id="treasuryWithdrawals">$0.00</h3>
+            </div>
+            <div class="stat-icon red"><i class="fas fa-arrow-up"></i></div>
+          </div>
+          <div class="stat-card">
+            <div class="info">
+              <h6>عدد المعاملات</h6>
+              <h3 id="treasuryTxCount">0</h3>
+            </div>
+            <div class="stat-icon purple"><i class="fas fa-list"></i></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== الرسوم البيانية ===== -->
+      <div class="charts-grid mt-4">
         <div class="chart-card">
           <h5>توزيع الخدمات</h5>
           <canvas id="servicesChart" height="180"></canvas>
@@ -212,6 +237,10 @@
         <div class="chart-card">
           <h5>المدفوعات (آخر 6 أشهر)</h5>
           <canvas id="paymentsChart" height="180"></canvas>
+        </div>
+        <div class="chart-card">
+          <h5>معاملات الخزينة</h5>
+          <canvas id="treasuryChart" height="180"></canvas>
         </div>
       </div>
 
