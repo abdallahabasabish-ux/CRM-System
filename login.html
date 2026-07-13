@@ -12,205 +12,13 @@
   <!-- Toastify -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <!-- الأنماط المخصصة -->
   <link rel="stylesheet" href="assets/css/style.css" />
-
-  <style>
-    /* تخصيص صفحة الدخول */
-    body {
-      background: var(--bg-body);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      padding: 20px;
-      font-family: 'Almarai', sans-serif;
-    }
-
-    .login-card {
-      max-width: 440px;
-      width: 100%;
-      background: var(--bg-card);
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--border-color);
-      box-shadow: var(--shadow-lg);
-      padding: 40px 32px;
-      transition: var(--transition);
-    }
-
-    .login-card .brand {
-      text-align: center;
-      margin-bottom: 28px;
-    }
-
-    .login-card .brand .logo-icon {
-      width: 64px;
-      height: 64px;
-      background: var(--color-primary);
-      border-radius: var(--radius-md);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 28px;
-      font-weight: 800;
-      color: #fff;
-      margin-bottom: 12px;
-    }
-
-    .login-card .brand h2 {
-      font-weight: 700;
-      color: var(--text-primary);
-      margin: 0;
-      font-size: 24px;
-    }
-
-    .login-card .brand p {
-      color: var(--text-muted);
-      font-size: 14px;
-      margin-top: 4px;
-    }
-
-    .login-card .nav-tabs .nav-link {
-      font-weight: 600;
-      color: var(--text-muted);
-      border: none;
-      border-bottom: 2px solid transparent;
-      padding: 8px 0;
-      margin: 0 12px;
-    }
-
-    .login-card .nav-tabs .nav-link.active {
-      color: var(--color-primary);
-      border-bottom-color: var(--color-primary);
-      background: transparent;
-    }
-
-    .login-card .nav-tabs .nav-link:hover {
-      color: var(--text-primary);
-      border-bottom-color: var(--border-color);
-    }
-
-    .login-card .form-group {
-      margin-bottom: 18px;
-    }
-
-    .login-card .form-label {
-      font-weight: 600;
-      font-size: 14px;
-      color: var(--text-secondary);
-    }
-
-    .login-card .form-control {
-      background: var(--bg-input);
-      border-color: var(--border-color);
-      color: var(--text-primary);
-      padding: 12px 16px;
-      border-radius: var(--radius-sm);
-    }
-
-    .login-card .form-control:focus {
-      border-color: var(--color-primary);
-      box-shadow: 0 0 0 3px rgba(255, 102, 0, 0.15);
-    }
-
-    .login-card .btn-primary {
-      width: 100%;
-      padding: 12px;
-      font-weight: 700;
-      border-radius: var(--radius-sm);
-      background: var(--color-primary);
-      border: none;
-      color: #fff;
-      transition: var(--transition);
-    }
-
-    .login-card .btn-primary:hover {
-      background: var(--color-primary-dark);
-      box-shadow: 0 4px 16px rgba(255, 102, 0, 0.3);
-    }
-
-    .login-card .btn-google {
-      width: 100%;
-      padding: 12px;
-      font-weight: 600;
-      border-radius: var(--radius-sm);
-      background: #fff;
-      border: 1px solid var(--border-color);
-      color: var(--text-primary);
-      transition: var(--transition);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-    }
-
-    .login-card .btn-google:hover {
-      background: var(--bg-input);
-      border-color: var(--text-muted);
-    }
-
-    .login-card .divider {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin: 20px 0;
-      color: var(--text-muted);
-      font-size: 13px;
-    }
-
-    .login-card .divider::before,
-    .login-card .divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border-color);
-    }
-
-    .login-card .extra-links {
-      display: flex;
-      justify-content: space-between;
-      font-size: 13px;
-      margin-top: 14px;
-    }
-
-    .login-card .extra-links a {
-      color: var(--text-muted);
-      text-decoration: none;
-      transition: var(--transition);
-    }
-
-    .login-card .extra-links a:hover {
-      color: var(--color-primary);
-    }
-
-    .login-card .error-msg {
-      color: #dc3545;
-      font-size: 13px;
-      margin-top: 8px;
-      display: none;
-    }
-
-    /* Dark mode overrides */
-    [data-theme="dark"] .login-card .btn-google {
-      background: var(--bg-card);
-      border-color: var(--border-dark);
-    }
-
-    [data-theme="dark"] .login-card .btn-google:hover {
-      background: var(--bg-sidebar-hover);
-    }
-
-    /* Responsive */
-    @media (max-width: 576px) {
-      .login-card {
-        padding: 28px 20px;
-      }
-    }
-  </style>
 </head>
-<body>
+<body class="login-page">
 
   <div class="login-card">
     <!-- الشعار والعلامة التجارية -->
@@ -240,19 +48,23 @@
           </div>
           <div class="form-group">
             <label for="loginPassword" class="form-label">كلمة المرور</label>
-            <input type="password" class="form-control" id="loginPassword" placeholder="••••••••" required />
+            <div class="input-group">
+              <input type="password" class="form-control" id="loginPassword" placeholder="••••••••" required />
+              <button class="btn btn-outline-secondary" type="button" id="toggleLoginPassword">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
           </div>
-          <button type="submit" class="btn btn-primary" id="loginBtn">
+          <button type="submit" class="btn btn-primary w-100" id="loginBtn">
             <i class="fas fa-sign-in-alt me-2"></i>تسجيل الدخول
           </button>
           <div id="loginError" class="error-msg"></div>
         </form>
 
-        <!-- الفاصل -->
         <div class="divider">أو</div>
 
         <!-- زر تسجيل الدخول بـ Google -->
-        <button class="btn-google" id="googleLoginBtn">
+        <button class="btn-google w-100" id="googleLoginBtn">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48">
             <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
             <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
@@ -280,23 +92,32 @@
           </div>
           <div class="form-group">
             <label for="registerPassword" class="form-label">كلمة المرور</label>
-            <input type="password" class="form-control" id="registerPassword" placeholder="••••••••" required minlength="6" />
+            <div class="input-group">
+              <input type="password" class="form-control" id="registerPassword" placeholder="••••••••" required minlength="6" />
+              <button class="btn btn-outline-secondary" type="button" id="toggleRegisterPassword">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
           </div>
           <div class="form-group">
             <label for="registerConfirm" class="form-label">تأكيد كلمة المرور</label>
-            <input type="password" class="form-control" id="registerConfirm" placeholder="••••••••" required minlength="6" />
+            <div class="input-group">
+              <input type="password" class="form-control" id="registerConfirm" placeholder="••••••••" required minlength="6" />
+              <button class="btn btn-outline-secondary" type="button" id="toggleRegisterConfirm">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
           </div>
-          <button type="submit" class="btn btn-primary" id="registerBtn">
+          <button type="submit" class="btn btn-primary w-100" id="registerBtn">
             <i class="fas fa-user-plus me-2"></i>إنشاء حساب
           </button>
           <div id="registerError" class="error-msg"></div>
         </form>
 
-        <!-- الفاصل -->
         <div class="divider">أو</div>
 
         <!-- زر التسجيل عبر Google -->
-        <button class="btn-google" id="googleRegisterBtn">
+        <button class="btn-google w-100" id="googleRegisterBtn">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48">
             <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
             <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
@@ -310,7 +131,7 @@
 
     <!-- زر تبديل الوضع المظلم -->
     <div class="text-center mt-3">
-      <button class="icon-btn theme-toggle" id="themeToggle" title="تبديل الوضع المظلم" style="font-size:20px;color:var(--text-muted);">
+      <button class="icon-btn theme-toggle" id="themeToggle" title="تبديل الوضع المظلم">
         <i class="fas fa-moon"></i>
       </button>
     </div>
