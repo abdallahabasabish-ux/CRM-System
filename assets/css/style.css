@@ -1209,15 +1209,284 @@ ul {
 }
 
 /* =========================================================
-   21.  أنماط التحميل (Skeleton Loading)
+   17.  أنماط صفحة تسجيل الدخول (Login Page) - مُحسَّنة
    ========================================================= */
-.skeleton {
-  animation: shimmer 1.5s infinite;
-  background: linear-gradient(90deg, var(--bg-input) 25%, var(--border-color) 50%, var(--bg-input) 75%);
-  background-size: 200% 100%;
-  border-radius: 4px;
+
+.login-page {
+  background: var(--bg-body);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  margin: 0;
+  padding: 16px;
+  font-family: var(--font-family);
 }
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+
+.login-card {
+  max-width: 440px;
+  width: 100%;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  padding: 32px 28px;
+  transition: var(--transition);
+}
+.login-card:hover {
+  box-shadow: var(--shadow-xl);
+}
+
+.login-card .brand {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.login-card .brand .logo-icon {
+  width: 56px;
+  height: 56px;
+  background: var(--color-primary);
+  border-radius: var(--radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 10px;
+  transition: var(--transition);
+}
+.login-card .brand .logo-icon:hover {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-glow);
+}
+
+.login-card .brand h2 {
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  font-size: 22px;
+}
+
+.login-card .brand p {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-top: 2px;
+}
+
+.login-card .nav-tabs {
+  border-bottom: none;
+  gap: 4px;
+  justify-content: center;
+}
+
+.login-card .nav-tabs .nav-link {
+  font-weight: 600;
+  color: var(--text-muted);
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 6px 0;
+  margin: 0 10px;
+  font-size: 15px;
+  background: transparent;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+.login-card .nav-tabs .nav-link:hover {
+  color: var(--text-primary);
+  border-bottom-color: var(--border-color);
+}
+.login-card .nav-tabs .nav-link.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  background: transparent;
+}
+
+.login-card .form-group {
+  margin-bottom: 16px;
+}
+
+.login-card .form-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.login-card .form-control {
+  background: var(--bg-input);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  height: auto;
+}
+.login-card .form-control:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(255, 102, 0, 0.15);
+}
+
+.login-card .btn-primary {
+  padding: 12px;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  border: none;
+  color: #fff;
+  transition: var(--transition);
+  width: 100%;
+  font-size: 15px;
+}
+.login-card .btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  box-shadow: 0 4px 16px rgba(255, 102, 0, 0.3);
+  transform: translateY(-1px);
+}
+
+.login-card .btn-google {
+  padding: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  font-size: 15px;
+}
+.login-card .btn-google:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+[data-theme="dark"] .login-card .btn-google {
+  background: var(--bg-card);
+  border-color: var(--border-dark);
+}
+[data-theme="dark"] .login-card .btn-google:hover {
+  background: var(--bg-sidebar-hover);
+}
+
+.login-card .divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.login-card .divider::before,
+.login-card .divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.login-card .extra-links {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-top: 12px;
+}
+.login-card .extra-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: var(--transition);
+}
+.login-card .extra-links a:hover {
+  color: var(--color-primary);
+}
+
+.login-card .error-msg {
+  color: #dc3545;
+  font-size: 13px;
+  margin-top: 8px;
+  display: none;
+}
+
+.login-card .icon-btn.theme-toggle {
+  font-size: 20px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  transition: var(--transition);
+  padding: 6px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.login-card .icon-btn.theme-toggle:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+/* =========================================================
+   تحسينات التجاوب لصفحة الدخول
+   ========================================================= */
+
+@media (max-width: 576px) {
+  .login-page {
+    padding: 12px;
+  }
+  .login-card {
+    padding: 24px 18px;
+    border-radius: var(--radius-md);
+  }
+  .login-card .brand .logo-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+  }
+  .login-card .brand h2 {
+    font-size: 20px;
+  }
+  .login-card .brand p {
+    font-size: 13px;
+  }
+  .login-card .nav-tabs .nav-link {
+    font-size: 14px;
+    margin: 0 6px;
+    padding: 4px 0;
+  }
+  .login-card .form-control {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  .login-card .btn-primary,
+  .login-card .btn-google {
+    padding: 10px;
+    font-size: 14px;
+  }
+  .login-card .divider {
+    margin: 14px 0;
+    font-size: 12px;
+  }
+  .login-card .extra-links {
+    font-size: 12px;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 400px) {
+  .login-card {
+    padding: 20px 14px;
+  }
+  .login-card .brand h2 {
+    font-size: 18px;
+  }
+  .login-card .nav-tabs .nav-link {
+    font-size: 13px;
+    margin: 0 4px;
+  }
+  .login-card .form-control {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
 }
