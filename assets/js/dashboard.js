@@ -34,19 +34,25 @@ let treasuryTxCount = 0;
 let treasuryTransactions = [];
 
 // =============================================================
-// 2.  دوال مساعدة (مطابقة لتلك المستخدمة في التقارير)
+// 2.  دوال مساعدة (آمنة)
 // =============================================================
 function formatCurrency(amount, currency = '$') {
   if (amount === undefined || amount === null) return `${currency}0.00`;
   return `${currency}${amount.toFixed(2)}`;
 }
 
+function safeDate(date) {
+  if (!date) return null;
+  if (date instanceof Timestamp) return date.toDate();
+  if (date instanceof Date) return date;
+  if (typeof date === 'string') return new Date(date);
+  return null;
+}
+
 function formatDate(date) {
-  if (!date) return '-';
-  if (date instanceof Timestamp) date = date.toDate();
-  if (date instanceof Date) return date.toISOString().slice(0, 10);
-  if (typeof date === 'string') return date.slice(0, 10);
-  return '-';
+  const d = safeDate(date);
+  if (!d) return '-';
+  return d.toISOString().slice(0, 10);
 }
 
 function escapeHtml(text) {
@@ -78,42 +84,7 @@ function showToast(message, type = 'success') {
 }
 
 // =============================================================
-// 3.  المصادقة والتهيئة
-// =============================================================
-onAuthStateChangedCallback(async (user) => {
-  if (!user) {
-    window.location.href = 'login.html';
-    return;
-  }
-
-  // تحديث بيانات المستخدم في الـ Sidebar
-  const sidebarUserName = document.getElementById('sidebarUserName');
-  const sidebarUserEmail = document.getElementById('sidebarUserEmail');
-  const sidebarAvatar = document.getElementById('sidebarAvatar');
-
-  if (sidebarUserName) sidebarUserName.textContent = user.displayName || user.email;
-  if (sidebarUserEmail) sidebarUserEmail.textContent = user.email;
-  if (sidebarAvatar) {
-    sidebarAvatar.textContent = user.displayName
-      ? user.displayName.charAt(0).toUpperCase()
-      : user.email.charAt(0).toUpperCase();
-  }
-
-  initDarkMode();
-  initSidebar();
-
-  document.getElementById('logoutBtn')?.addEventListener('click', async () => {
-    await logoutUser();
-    window.location.href = 'login.html';
-  });
-
-  await loadServices();
-  await loadDashboardData();
-  listenToRealtimeUpdates();
-});
-
-// =============================================================
-// 4.  الوضع المظلم والقائمة الجانبية
+// 3.  تهيئة الوضع المظلم والقائمة الجانبية
 // =============================================================
 function initDarkMode() {
   const themeToggle = document.getElementById('themeToggle');
@@ -165,7 +136,7 @@ function initSidebar() {
 }
 
 // =============================================================
-// 5.  تحميل أسماء الخدمات
+// 4.  تحميل أسماء الخدمات
 // =============================================================
 async function loadServices() {
   try {
@@ -175,15 +146,17 @@ async function loadServices() {
       servicesMap[doc.id] = doc.data().name || 'خدمة غير معروفة';
     });
   } catch (error) {
-    console.error('Error loading services:', error);
+    console.warn('⚠️ Could not load services:', error);
   }
 }
 
 // =============================================================
-// 6.  تحميل البيانات الأولية
+// 5.  تحميل البيانات الأساسية (مع معالجة الأخطاء)
 // =============================================================
 async function loadDashboardData() {
   try {
+    console.log('📊 بدء تحميل بيانات لوحة التحكم...');
+
     // العملاء
     const customersSnap = await getDocs(collection(db, 'customers'));
     customersCount = customersSnap.size;
@@ -206,7 +179,7 @@ async function loadDashboardData() {
     recentPayments = recentPaymentsSnap.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      paymentDate: doc.data().paymentDate?.toDate?.() || doc.data().paymentDate || null
+      paymentDate: safeDate(doc.data().paymentDate)
     }));
 
     // آخر 5 عملاء
@@ -214,21 +187,32 @@ async function loadDashboardData() {
     const recentSnap = await getDocs(q);
     recentCustomers = recentSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    // ===== بيانات الخزينة =====
-    const treasurySnap = await getDocs(collection(db, 'treasury'));
-    treasuryTransactions = treasurySnap.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt || null
-    }));
-    treasuryDeposits = treasuryTransactions.filter(t => t.type === 'deposit')
-      .reduce((sum, t) => sum + (t.amount || 0), 0);
-    treasuryWithdrawals = treasuryTransactions.filter(t => t.type === 'withdraw')
-      .reduce((sum, t) => sum + (t.amount || 0), 0);
-    treasuryTransfers = treasuryTransactions.filter(t => t.type === 'transfer')
-      .reduce((sum, t) => sum + (t.amount || 0), 0);
-    treasuryBalance = treasuryDeposits - treasuryWithdrawals + treasuryTransfers;
-    treasuryTxCount = treasuryTransactions.length;
+    // ===== الخزينة (مع معالجة المجموعة غير الموجودة) =====
+    try {
+      const treasurySnap = await getDocs(collection(db, 'treasury'));
+      treasuryTransactions = treasurySnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: safeDate(doc.data().createdAt)
+      }));
+      treasuryDeposits = treasuryTransactions.filter(t => t.type === 'deposit')
+        .reduce((sum, t) => sum + (t.amount || 0), 0);
+      treasuryWithdrawals = treasuryTransactions.filter(t => t.type === 'withdraw')
+        .reduce((sum, t) => sum + (t.amount || 0), 0);
+      treasuryTransfers = treasuryTransactions.filter(t => t.type === 'transfer')
+        .reduce((sum, t) => sum + (t.amount || 0), 0);
+      treasuryBalance = treasuryDeposits - treasuryWithdrawals + treasuryTransfers;
+      treasuryTxCount = treasuryTransactions.length;
+    } catch (treasuryError) {
+      console.warn('⚠️ Treasury collection not found or empty:', treasuryError);
+      // تعيين قيم افتراضية
+      treasuryTransactions = [];
+      treasuryDeposits = 0;
+      treasuryWithdrawals = 0;
+      treasuryTransfers = 0;
+      treasuryBalance = 0;
+      treasuryTxCount = 0;
+    }
 
     // تحديث واجهة المستخدم
     updateStats();
@@ -237,21 +221,22 @@ async function loadDashboardData() {
     updateRecentCustomers();
     updateCharts(allOrders);
 
+    console.log('✅ تم تحميل بيانات لوحة التحكم بنجاح');
   } catch (error) {
-    console.error('Error loading dashboard data:', error);
-    showToast('حدث خطأ في تحميل البيانات', 'error');
+    console.error('❌ خطأ في تحميل بيانات لوحة التحكم:', error);
+    showToast('حدث خطأ في تحميل بعض البيانات. تم تحميل البيانات المتاحة.', 'warning');
   }
 }
 
 // =============================================================
-// 7.  الاستماع للتحديثات الفورية
+// 6.  الاستماع للتحديثات الفورية (مع معالجة الأخطاء)
 // =============================================================
 function listenToRealtimeUpdates() {
   // العملاء
   onSnapshot(collection(db, 'customers'), (snapshot) => {
     customersCount = snapshot.size;
     updateStats();
-  });
+  }, (error) => console.warn('⚠️ Customers listener error:', error));
 
   // الطلبات
   onSnapshot(collection(db, 'orders'), (snapshot) => {
@@ -261,7 +246,7 @@ function listenToRealtimeUpdates() {
     totalRevenue = allOrders.reduce((sum, o) => sum + (o.total || 0), 0);
     updateStats();
     updateCharts(allOrders);
-  });
+  }, (error) => console.warn('⚠️ Orders listener error:', error));
 
   // المدفوعات
   onSnapshot(collection(db, 'payments'), (snapshot) => {
@@ -272,7 +257,7 @@ function listenToRealtimeUpdates() {
     const sorted = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
-      paymentDate: doc.data().paymentDate?.toDate?.() || doc.data().paymentDate || null
+      paymentDate: safeDate(doc.data().paymentDate)
     })).sort((a, b) => {
       const da = a.paymentDate ? new Date(a.paymentDate) : 0;
       const db = b.paymentDate ? new Date(b.paymentDate) : 0;
@@ -280,62 +265,71 @@ function listenToRealtimeUpdates() {
     }).slice(0, 5);
     recentPayments = sorted;
     updateRecentPayments();
-
     updatePaymentsChart();
-  });
+  }, (error) => console.warn('⚠️ Payments listener error:', error));
 
-  // الخزينة
-  onSnapshot(collection(db, 'treasury'), (snapshot) => {
-    treasuryTransactions = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt || null
-    }));
-    treasuryDeposits = treasuryTransactions.filter(t => t.type === 'deposit')
-      .reduce((sum, t) => sum + (t.amount || 0), 0);
-    treasuryWithdrawals = treasuryTransactions.filter(t => t.type === 'withdraw')
-      .reduce((sum, t) => sum + (t.amount || 0), 0);
-    treasuryTransfers = treasuryTransactions.filter(t => t.type === 'transfer')
-      .reduce((sum, t) => sum + (t.amount || 0), 0);
-    treasuryBalance = treasuryDeposits - treasuryWithdrawals + treasuryTransfers;
-    treasuryTxCount = treasuryTransactions.length;
-    updateTreasuryStats();
-    updateTreasuryChart();
-  });
+  // الخزينة (مع معالجة الأخطاء)
+  try {
+    onSnapshot(collection(db, 'treasury'), (snapshot) => {
+      treasuryTransactions = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: safeDate(doc.data().createdAt)
+      }));
+      treasuryDeposits = treasuryTransactions.filter(t => t.type === 'deposit')
+        .reduce((sum, t) => sum + (t.amount || 0), 0);
+      treasuryWithdrawals = treasuryTransactions.filter(t => t.type === 'withdraw')
+        .reduce((sum, t) => sum + (t.amount || 0), 0);
+      treasuryTransfers = treasuryTransactions.filter(t => t.type === 'transfer')
+        .reduce((sum, t) => sum + (t.amount || 0), 0);
+      treasuryBalance = treasuryDeposits - treasuryWithdrawals + treasuryTransfers;
+      treasuryTxCount = treasuryTransactions.length;
+      updateTreasuryStats();
+      updateTreasuryChart();
+    }, (error) => {
+      console.warn('⚠️ Treasury listener error (maybe collection missing):', error);
+      // لا نعرض رسالة للمستخدم لأنها قد تكون مجموعة غير موجودة
+    });
+  } catch (e) {
+    console.warn('⚠️ Treasury listener setup error:', e);
+  }
 
   // آخر العملاء
   onSnapshot(query(collection(db, 'customers'), orderBy('createdAt', 'desc'), limit(5)), (snapshot) => {
     recentCustomers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     updateRecentCustomers();
-  });
+  }, (error) => console.warn('⚠️ Recent customers listener error:', error));
 }
 
 // =============================================================
-// 8.  تحديث البطاقات الإحصائية الرئيسية
+// 7.  تحديث البطاقات الإحصائية (مع التحقق من وجود العناصر)
 // =============================================================
 function updateStats() {
-  document.getElementById('statCustomers').textContent = customersCount;
-  document.getElementById('statActiveOrders').textContent = activeOrdersCount;
-  document.getElementById('statPayments').textContent = formatCurrency(totalPayments);
-  document.getElementById('statCompleted').textContent = completedOrdersCount;
-  document.getElementById('statRevenue').textContent = formatCurrency(totalRevenue);
-  document.getElementById('statPaymentsCount').textContent = paymentsCount;
+  const el = (id) => document.getElementById(id);
+  if (el('statCustomers')) el('statCustomers').textContent = customersCount;
+  if (el('statActiveOrders')) el('statActiveOrders').textContent = activeOrdersCount;
+  if (el('statPayments')) el('statPayments').textContent = formatCurrency(totalPayments);
+  if (el('statCompleted')) el('statCompleted').textContent = completedOrdersCount;
+  if (el('statRevenue')) el('statRevenue').textContent = formatCurrency(totalRevenue);
+  if (el('statPaymentsCount')) el('statPaymentsCount').textContent = paymentsCount;
 }
 
 // =============================================================
-// 9.  تحديث بطاقات الخزينة المصغرة
+// 8.  تحديث بطاقات الخزينة المصغرة
 // =============================================================
 function updateTreasuryStats() {
-  document.getElementById('treasuryHeaderBalance').innerHTML =
-    `<small>الرصيد الحالي</small> ${formatCurrency(treasuryBalance)}`;
-  document.getElementById('miniTotalDeposits').textContent = formatCurrency(treasuryDeposits);
-  document.getElementById('miniTotalWithdrawals').textContent = formatCurrency(treasuryWithdrawals);
-  document.getElementById('miniTotalTransfers').textContent = formatCurrency(treasuryTransfers);
-  document.getElementById('miniTxCount').textContent = treasuryTxCount;
+  const el = (id) => document.getElementById(id);
+  if (el('treasuryHeaderBalance')) {
+    el('treasuryHeaderBalance').innerHTML = `<small>الرصيد الحالي</small> ${formatCurrency(treasuryBalance)}`;
+  }
+  if (el('miniTotalDeposits')) el('miniTotalDeposits').textContent = formatCurrency(treasuryDeposits);
+  if (el('miniTotalWithdrawals')) el('miniTotalWithdrawals').textContent = formatCurrency(treasuryWithdrawals);
+  if (el('miniTotalTransfers')) el('miniTotalTransfers').textContent = formatCurrency(treasuryTransfers);
+  if (el('miniTxCount')) el('miniTxCount').textContent = treasuryTxCount;
 }
 
 // =============================================================
-// 10. تحديث جدول آخر المدفوعات
+// 9.  تحديث جدول آخر المدفوعات
 // =============================================================
 function updateRecentPayments() {
   const tbody = document.getElementById('recentPaymentsBody');
@@ -364,7 +358,7 @@ function updateRecentPayments() {
 }
 
 // =============================================================
-// 11. تحديث جدول آخر العملاء
+// 10. تحديث جدول آخر العملاء
 // =============================================================
 function updateRecentCustomers() {
   const tbody = document.getElementById('recentCustomers');
@@ -391,112 +385,113 @@ function updateRecentCustomers() {
 }
 
 // =============================================================
-// 12. الرسوم البيانية (مطابقة للتقارير)
+// 11. الرسوم البيانية (مع معالجة الأخطاء)
 // =============================================================
 function updateCharts(ordersData) {
-  const colors = ['#ff6600', '#0d6efd', '#28a745', '#8b5cf6', '#ffc107', '#dc3545'];
+  try {
+    const colors = ['#ff6600', '#0d6efd', '#28a745', '#8b5cf6', '#ffc107', '#dc3545'];
 
-  // 12.1 توزيع الخدمات
-  const serviceCount = {};
-  ordersData.forEach(order => {
-    const sid = order.serviceId;
-    if (sid) serviceCount[sid] = (serviceCount[sid] || 0) + 1;
-  });
-  const sLabels = Object.keys(serviceCount).map(id => servicesMap[id] || id);
-  const sValues = Object.values(serviceCount);
-
-  const ctx1 = document.getElementById('servicesChart');
-  if (ctx1) {
-    if (chartInstances.services) chartInstances.services.destroy();
-    chartInstances.services = new Chart(ctx1, {
-      type: 'doughnut',
-      data: {
-        labels: sLabels.length ? sLabels : ['لا توجد طلبات'],
-        datasets: [{
-          data: sLabels.length ? sValues : [1],
-          backgroundColor: sLabels.length ? colors.slice(0, sLabels.length) : ['#e5e7eb'],
-          borderWidth: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        cutout: '60%',
-        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 12 } } }
-      }
+    // 11.1 توزيع الخدمات
+    const serviceCount = {};
+    ordersData.forEach(order => {
+      const sid = order.serviceId;
+      if (sid) serviceCount[sid] = (serviceCount[sid] || 0) + 1;
     });
-  }
+    const sLabels = Object.keys(serviceCount).map(id => servicesMap[id] || id);
+    const sValues = Object.values(serviceCount);
 
-  // 12.2 الطلبات الشهرية
-  const monthlyOrders = {};
-  const now = new Date();
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    monthlyOrders[key] = 0;
-  }
-  ordersData.forEach(order => {
-    const date = order.createdAt?.toDate?.() || order.createdAt;
-    if (date) {
-      const d = date instanceof Date ? date : new Date(date);
-      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-      if (monthlyOrders[key] !== undefined) monthlyOrders[key]++;
-    }
-  });
-  const mLabels = Object.keys(monthlyOrders);
-  const mValues = Object.values(monthlyOrders);
-
-  const ctx2 = document.getElementById('ordersChart');
-  if (ctx2) {
-    if (chartInstances.orders) chartInstances.orders.destroy();
-    chartInstances.orders = new Chart(ctx2, {
-      type: 'bar',
-      data: {
-        labels: mLabels.map(l => l.split('-')[1] + '/' + l.split('-')[0]),
-        datasets: [{
-          label: 'الطلبات',
-          data: mValues,
-          backgroundColor: 'rgba(13, 110, 253, 0.7)',
-          borderRadius: 6
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { stepSize: 1 } },
-          x: { grid: { display: false } }
+    const ctx1 = document.getElementById('servicesChart');
+    if (ctx1) {
+      if (chartInstances.services) chartInstances.services.destroy();
+      chartInstances.services = new Chart(ctx1, {
+        type: 'doughnut',
+        data: {
+          labels: sLabels.length ? sLabels : ['لا توجد طلبات'],
+          datasets: [{
+            data: sLabels.length ? sValues : [1],
+            backgroundColor: sLabels.length ? colors.slice(0, sLabels.length) : ['#e5e7eb'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          cutout: '60%',
+          plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 12 } } }
         }
+      });
+    }
+
+    // 11.2 الطلبات الشهرية
+    const monthlyOrders = {};
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      monthlyOrders[key] = 0;
+    }
+    ordersData.forEach(order => {
+      const date = safeDate(order.createdAt);
+      if (date) {
+        const key = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
+        if (monthlyOrders[key] !== undefined) monthlyOrders[key]++;
       }
     });
+    const mLabels = Object.keys(monthlyOrders);
+    const mValues = Object.values(monthlyOrders);
+
+    const ctx2 = document.getElementById('ordersChart');
+    if (ctx2) {
+      if (chartInstances.orders) chartInstances.orders.destroy();
+      chartInstances.orders = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: mLabels.map(l => l.split('-')[1] + '/' + l.split('-')[0]),
+          datasets: [{
+            label: 'الطلبات',
+            data: mValues,
+            backgroundColor: 'rgba(13, 110, 253, 0.7)',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { stepSize: 1 } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    // 11.3 مخطط المدفوعات
+    updatePaymentsChart();
+    // 11.4 مخطط الخزينة
+    updateTreasuryChart();
+  } catch (chartError) {
+    console.warn('⚠️ Chart rendering error:', chartError);
   }
-
-  // 12.3 مخطط المدفوعات
-  updatePaymentsChart();
-
-  // 12.4 مخطط الخزينة
-  updateTreasuryChart();
 }
 
 // =============================================================
-// 12.3 تحديث مخطط المدفوعات
+// 11.3 تحديث مخطط المدفوعات
 // =============================================================
 async function updatePaymentsChart() {
-  const monthlyPayments = {};
-  const now = new Date();
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    monthlyPayments[key] = 0;
-  }
-
   try {
+    const monthlyPayments = {};
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      monthlyPayments[key] = 0;
+    }
+
     const snap = await getDocs(collection(db, 'payments'));
     snap.docs.forEach(doc => {
       const data = doc.data();
-      const date = data.paymentDate?.toDate?.() || data.paymentDate;
+      const date = safeDate(data.paymentDate);
       if (date) {
-        const d = date instanceof Date ? date : new Date(date);
-        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        const key = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
         if (monthlyPayments[key] !== undefined) {
           monthlyPayments[key] += data.amount || 0;
         }
@@ -533,37 +528,31 @@ async function updatePaymentsChart() {
         }
       });
     }
-  } catch (error) {
-    console.error('Error updating payments chart:', error);
-  }
+  } catch (e) { console.warn('⚠️ Payments chart error:', e); }
 }
 
 // =============================================================
-// 12.4 تحديث مخطط الخزينة
+// 11.4 تحديث مخطط الخزينة
 // =============================================================
 async function updateTreasuryChart() {
-  const monthlyTreasury = {};
-  const now = new Date();
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    monthlyTreasury[key] = { deposits: 0, withdrawals: 0 };
-  }
-
   try {
+    const monthlyTreasury = {};
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      monthlyTreasury[key] = { deposits: 0, withdrawals: 0 };
+    }
+
     const snap = await getDocs(collection(db, 'treasury'));
     snap.docs.forEach(doc => {
       const data = doc.data();
-      const date = data.createdAt?.toDate?.() || data.createdAt;
+      const date = safeDate(data.createdAt);
       if (date) {
-        const d = date instanceof Date ? date : new Date(date);
-        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        const key = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
         if (monthlyTreasury[key] !== undefined) {
-          if (data.type === 'deposit') {
-            monthlyTreasury[key].deposits += data.amount || 0;
-          } else if (data.type === 'withdraw') {
-            monthlyTreasury[key].withdrawals += data.amount || 0;
-          }
+          if (data.type === 'deposit') monthlyTreasury[key].deposits += data.amount || 0;
+          else if (data.type === 'withdraw') monthlyTreasury[key].withdrawals += data.amount || 0;
         }
       }
     });
@@ -580,18 +569,8 @@ async function updateTreasuryChart() {
         data: {
           labels: labels.map(l => l.split('-')[1] + '/' + l.split('-')[0]),
           datasets: [
-            {
-              label: 'إيداعات',
-              data: deposits,
-              backgroundColor: 'rgba(40, 167, 69, 0.7)',
-              borderRadius: 4
-            },
-            {
-              label: 'سحوبات',
-              data: withdrawals,
-              backgroundColor: 'rgba(220, 53, 69, 0.7)',
-              borderRadius: 4
-            }
+            { label: 'إيداعات', data: deposits, backgroundColor: 'rgba(40,167,69,0.7)', borderRadius: 4 },
+            { label: 'سحوبات', data: withdrawals, backgroundColor: 'rgba(220,53,69,0.7)', borderRadius: 4 }
           ]
         },
         options: {
@@ -604,9 +583,39 @@ async function updateTreasuryChart() {
         }
       });
     }
-  } catch (error) {
-    console.error('Error updating treasury chart:', error);
-  }
+  } catch (e) { console.warn('⚠️ Treasury chart error:', e); }
 }
 
-console.log('✅ Dashboard ready with professional design and treasury integration');
+// =============================================================
+// 12.  التهيئة العامة
+// =============================================================
+onAuthStateChangedCallback(async (user) => {
+  if (!user) {
+    window.location.href = 'login.html';
+    return;
+  }
+
+  // تحديث بيانات المستخدم
+  const sidebarUserName = document.getElementById('sidebarUserName');
+  const sidebarUserEmail = document.getElementById('sidebarUserEmail');
+  const sidebarAvatar = document.getElementById('sidebarAvatar');
+  if (sidebarUserName) sidebarUserName.textContent = user.displayName || user.email;
+  if (sidebarUserEmail) sidebarUserEmail.textContent = user.email;
+  if (sidebarAvatar) {
+    sidebarAvatar.textContent = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
+  }
+
+  initDarkMode();
+  initSidebar();
+
+  document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+    await logoutUser();
+    window.location.href = 'login.html';
+  });
+
+  await loadServices();
+  await loadDashboardData();
+  listenToRealtimeUpdates();
+});
+
+console.log('✅ Dashboard.js loaded (stable version with error handling)');
