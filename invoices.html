@@ -123,9 +123,14 @@
             <input type="text" class="form-control" id="searchInput" placeholder="بحث برقم الفاتورة أو العميل..." />
           </div>
         </div>
-        <button class="btn btn-accent" id="createInvoiceBtn">
-          <i class="fas fa-plus me-2"></i>فاتورة جديدة
-        </button>
+        <div class="d-flex gap-2">
+          <button class="btn btn-accent" id="createInvoiceBtn">
+            <i class="fas fa-plus me-2"></i>فاتورة جديدة
+          </button>
+          <button class="btn btn-primary" id="mergeInvoicesBtn">
+            <i class="fas fa-object-group me-2"></i>دمج فواتير
+          </button>
+        </div>
       </div>
 
       <!-- الجدول -->
@@ -137,6 +142,7 @@
           <table class="table" id="invoicesTable">
             <thead>
               <tr>
+                <th><input type="checkbox" id="selectAllInvoices" /></th>
                 <th># الفاتورة</th>
                 <th>العميل</th>
                 <th>المبلغ</th>
@@ -146,7 +152,7 @@
               </tr>
             </thead>
             <tbody id="invoicesTableBody">
-              <tr><td colspan="6" class="text-center text-muted py-4">جاري تحميل الفواتير...</td></tr>
+              <tr><td colspan="7" class="text-center text-muted py-4">جاري تحميل الفواتير...</td></tr>
             </tbody>
           </table>
         </div>
@@ -180,6 +186,46 @@
           </button>
           <button type="button" class="btn btn-info" id="shareWhatsappBtn">
             <i class="fab fa-whatsapp me-2"></i>واتساب
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- مودال دمج الفواتير -->
+  <!-- ========================================================= -->
+  <div class="modal fade" id="mergeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">دمج الفواتير</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>اختر الفواتير التي تريد دمجها (لنفس العميل):</p>
+          <div class="table-responsive">
+            <table class="table table-hover" id="mergeInvoicesTable">
+              <thead>
+                <tr>
+                  <th><input type="checkbox" id="selectAllMerge" /></th>
+                  <th># الفاتورة</th>
+                  <th>العميل</th>
+                  <th>المبلغ</th>
+                  <th>التاريخ</th>
+                </tr>
+              </thead>
+              <tbody id="mergeInvoicesBody">
+                <!-- سيتم ملؤها بواسطة JS -->
+              </tbody>
+            </table>
+          </div>
+          <div id="mergeInfo" class="mt-2 text-muted"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-bs-dismiss="modal">إلغاء</button>
+          <button type="button" class="btn btn-primary" id="confirmMergeBtn">
+            <i class="fas fa-object-group me-2"></i>دمج الفواتير المختارة
           </button>
         </div>
       </div>
