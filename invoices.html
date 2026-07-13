@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>إدارة الفواتير - نظام إدارة الأعمال</title>
+  
+  <!-- Bootstrap 5 RTL -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet" />
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- Toastify -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  
+  <!-- مكتبات PDF و QR Code -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+  <!-- الأنماط المخصصة -->
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+
+  <!-- ========================================= -->
+  <!-- SIDEBAR -->
+  <!-- ========================================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <i class="fas fa-cube"></i>
+      <span>نظام إدارة الأعمال</span>
+    </div>
+
+    <ul class="sidebar-menu">
+      <li><a href="dashboard.html"><i class="fas fa-chart-pie"></i> لوحة التحكم</a></li>
+      <li><a href="customers.html"><i class="fas fa-users"></i> العملاء</a></li>
+      <li><a href="services.html"><i class="fas fa-concierge-bell"></i> الخدمات</a></li>
+      <li><a href="employees.html"><i class="fas fa-user-tie"></i> الموظفون</a></li>
+      <li><a href="orders.html"><i class="fas fa-clipboard-list"></i> الطلبات</a></li>
+      <li><a href="payments.html"><i class="fas fa-credit-card"></i> المدفوعات</a></li>
+      <li><a href="invoices.html" class="active"><i class="fas fa-file-invoice"></i> الفواتير</a></li>
+      <li><a href="#"><i class="fas fa-chart-line"></i> التقارير</a></li>
+      <li><a href="#"><i class="fas fa-cog"></i> الإعدادات</a></li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="sidebarAvatar">م</div>
+        <div>
+          <div class="fw-bold" id="sidebarUserName" style="font-size: 14px;">المستخدم</div>
+          <div class="text-muted" style="font-size: 12px;" id="sidebarUserEmail">user@email.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ========================================= -->
+  <!-- MAIN CONTENT -->
+  <!-- ========================================= -->
+  <main class="main-content">
+
+    <!-- Top Navbar -->
+    <nav class="top-navbar">
+      <div>
+        <button class="d-lg-none btn btn-sm" id="sidebarToggle" style="background: var(--border-color); border-radius: 8px;">
+          <i class="fas fa-bars"></i>
+        </button>
+        <span class="page-title me-2">الفواتير</span>
+      </div>
+      <div class="nav-actions">
+        <button class="theme-toggle" id="themeToggle" title="تبديل الوضع المظلم">
+          <i class="fas fa-moon"></i>
+        </button>
+        <button id="logoutBtn" title="تسجيل الخروج">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+      </div>
+    </nav>
+
+    <!-- المحتوى -->
+    <div class="container-fluid p-3 p-md-4">
+
+      <!-- شريط الأدوات -->
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <div class="d-flex gap-2 flex-wrap">
+          <div class="input-group" style="max-width: 350px;">
+            <span class="input-group-text bg-transparent border-color"><i class="fas fa-search"></i></span>
+            <input type="text" class="form-control" id="searchInput" placeholder="بحث برقم الفاتورة أو العميل..." />
+          </div>
+        </div>
+        <button class="btn btn-primary" id="createInvoiceBtn">
+          <i class="fas fa-plus me-2"></i>فاتورة جديدة
+        </button>
+      </div>
+
+      <!-- الجدول -->
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="invoicesTable">
+              <thead class="bg-light">
+                <tr>
+                  <th># الفاتورة</th>
+                  <th>العميل</th>
+                  <th>رقم الطلب</th>
+                  <th>المبلغ ($)</th>
+                  <th>تاريخ الإنشاء</th>
+                  <th style="width: 200px;">الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody id="invoicesTableBody">
+                <tr><td colspan="6" class="text-center text-muted py-4">جاري تحميل الفواتير...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-3 text-muted small" id="resultCount">عرض 0 فاتورة</div>
+
+    </div>
+  </main>
+
+  <!-- ========================================= -->
+  <!-- MODAL: اختيار طلب لإنشاء فاتورة -->
+  <!-- ========================================= -->
+  <div class="modal fade" id="createInvoiceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">إنشاء فاتورة جديدة</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="createInvoiceForm">
+            <div class="mb-3">
+              <label for="invoiceOrderSelect" class="form-label">اختر طلبًا لإنشاء فاتورة <span class="text-danger">*</span></label>
+              <select class="form-select" id="invoiceOrderSelect" required>
+                <option value="">اختر طلب...</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="invoiceNumber" class="form-label">رقم الفاتورة (تلقائي)</label>
+              <input type="text" class="form-control" id="invoiceNumber" readonly />
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="button" class="btn btn-primary" id="generateInvoiceBtn">
+            <i class="fas fa-file-pdf me-2"></i>إنشاء الفاتورة
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================= -->
+  <!-- MODAL: عرض الفاتورة (معاينة) -->
+  <!-- ========================================= -->
+  <div class="modal fade" id="viewInvoiceModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">الفاتورة</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4" style="background: #f8f9fa;">
+          <div id="invoicePreview">
+            <!-- سيتم عرض الفاتورة هنا -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+          <button type="button" class="btn btn-primary" id="printInvoiceBtn">
+            <i class="fas fa-print me-2"></i>طباعة
+          </button>
+          <button type="button" class="btn btn-success" id="downloadPdfBtn">
+            <i class="fas fa-download me-2"></i>تحميل PDF
+          </button>
+          <button type="button" class="btn btn-info" id="shareInvoiceBtn">
+            <i class="fas fa-share-alt me-2"></i>مشاركة
+          </button>
+          <button type="button" class="btn btn-success" id="whatsappBtn">
+            <i class="fab fa-whatsapp me-2"></i>واتساب
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================= -->
+  <!-- Import Map & JavaScript -->
+  <!-- ========================================= -->
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js",
+        "firebase/storage": "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js"
+      }
+    }
+  </script>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script type="module" src="assets/js/main.js"></script>
+  <script type="module" src="assets/js/pages/invoices.js"></script>
+
+</body>
+</html>
