@@ -4,10 +4,11 @@ import {
   collection,
   getDocs,
   query,
-  where,
   orderBy,
   limit,
-  onSnapshot
+  onSnapshot,
+  doc,
+  getDoc
 } from 'firebase/firestore';
 
 // ============================
@@ -20,10 +21,56 @@ let completedOrdersCount = 0;
 let totalRevenue = 0;
 let totalPayments = 0;
 let recentCustomers = [];
+let servicesMap = {}; // لتخزين أسماء الخدمات
 let chartInstances = {};
+let ordersListener = null;
+let customersListener = null;
+let paymentsListener = null;
 
 // ============================
-// 1. المصادقة والتهيئة
+// 1. دوال مساعدة
+// ============================
+function showToast(message, type = 'success') {
+  const colors = {
+    success: 'linear-gradient(to right, #00b09b, #96c93d)',
+    error: 'linear-gradient(to right, #ff5f6d, #ffc371)',
+    warning: 'linear-gradient(to right, #f7971e, #ffd200)',
+    info: 'linear-gradient(to right, #2193b0, #6dd5ed)'
+  };
+  Toastify({
+    text: message,
+    duration: 3000,
+    gravity: 'bottom',
+    position: 'left',
+    style: { background: colors[type] || colors.info },
+    className: 'rounded-3 shadow'
+  }).showToast();
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// ============================
+// 2. جلب أسماء الخدمات
+// ============================
+async function loadServices() {
+  try {
+    const servicesSnap = await getDocs(collection(db, 'services'));
+    servicesMap = {};
+    servicesSnap.docs.forEach(doc => {
+      servicesMap[doc.id] = doc.data().name || 'خدمة غير معروفة';
+    });
+  } catch (error) {
+    console.error('Error loading services:', error);
+  }
+}
+
+// ============================
+// 3. المصادقة والتهيئة
 // ============================
 onAuthStateChangedCallback(async (user) => {
   if (!user) {
@@ -40,13 +87,15 @@ onAuthStateChangedCallback(async (user) => {
     sidebarAvatar.textContent = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
   }
 
-  // تحميل البيانات
+  // تحميل أسماء الخدمات أولاً
+  await loadServices();
+  // ثم تحميل البيانات والاستماع للتحديثات
   await loadDashboardData();
   listenToRealtimeUpdates();
 });
 
 // ============================
-// 2. تسجيل الخروج وتبديل الوضع
+// 4. تسجيل الخروج وتبديل الوضع
 // ============================
 document.getElementById('logoutBtn')?.addEventListener('click', async () => {
   await logoutUser();
@@ -95,11 +144,11 @@ if (overlay) {
 }
 
 // ============================
-// 3. تحميل البيانات (قراءة لمرة واحدة)
+// 5. تحميل البيانات (قراءة لمرة واحدة)
 // ============================
 async function loadDashboardData() {
   try {
-    // عدد العملاء
+    // العملاء
     const customersSnap = await getDocs(collection(db, 'customers'));
     customersCount = customersSnap.size;
 
@@ -108,8 +157,6 @@ async function loadDashboardData() {
     ordersCount = ordersSnap.size;
     activeOrdersCount = ordersSnap.docs.filter(doc => doc.data().status === 'قيد التنفيذ').length;
     completedOrdersCount = ordersSnap.docs.filter(doc => doc.data().status === 'مكتمل').length;
-
-    // الإيرادات (مجموع total)
     totalRevenue = ordersSnap.docs.reduce((sum, doc) => sum + (doc.data().total || 0), 0);
 
     // المدفوعات
@@ -124,7 +171,7 @@ async function loadDashboardData() {
     // تحديث واجهة المستخدم
     updateStats();
     updateRecentCustomers();
-    updateCharts(ordersSnap.docs.map(doc => doc.data()));
+    updateCharts(ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
   } catch (error) {
     console.error('Error loading dashboard data:', error);
@@ -133,34 +180,39 @@ async function loadDashboardData() {
 }
 
 // ============================
-// 4. الاستماع للتحديثات الفورية (Realtime)
+// 6. الاستماع للتحديثات الفورية (Realtime)
 // ============================
 function listenToRealtimeUpdates() {
   // استماع للعملاء
-  onSnapshot(collection(db, 'customers'), (snapshot) => {
+  if (customersListener) customersListener();
+  customersListener = onSnapshot(collection(db, 'customers'), (snapshot) => {
     customersCount = snapshot.size;
     updateStats();
   });
 
-  // استماع للطلبات
-  onSnapshot(collection(db, 'orders'), (snapshot) => {
+  // استماع للطلبات (مع تحديث الرسوم البيانية)
+  if (ordersListener) ordersListener();
+  ordersListener = onSnapshot(collection(db, 'orders'), async (snapshot) => {
     ordersCount = snapshot.size;
     activeOrdersCount = snapshot.docs.filter(doc => doc.data().status === 'قيد التنفيذ').length;
     completedOrdersCount = snapshot.docs.filter(doc => doc.data().status === 'مكتمل').length;
     totalRevenue = snapshot.docs.reduce((sum, doc) => sum + (doc.data().total || 0), 0);
     updateStats();
-    updateCharts(snapshot.docs.map(doc => doc.data()));
+    // تحديث الرسوم البيانية بالبيانات الجديدة
+    const ordersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    updateCharts(ordersData);
   });
 
   // استماع للمدفوعات
-  onSnapshot(collection(db, 'payments'), (snapshot) => {
+  if (paymentsListener) paymentsListener();
+  paymentsListener = onSnapshot(collection(db, 'payments'), (snapshot) => {
     totalPayments = snapshot.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
     updateStats();
   });
 }
 
 // ============================
-// 5. تحديث البطاقات الإحصائية
+// 7. تحديث البطاقات الإحصائية
 // ============================
 function updateStats() {
   document.getElementById('statCustomers').textContent = customersCount;
@@ -170,9 +222,27 @@ function updateStats() {
 }
 
 // ============================
-// 6. تحديث جدول آخر العملاء
+// 8. تحديث جدول آخر العملاء
 // ============================
 function updateRecentCustomers() {
+  const tbody = document.getElementById('recentCustomers');
+  if (!tbody) return;
+
+  // إعادة تحميل آخر العملاء للحصول على أحدث البيانات
+  const loadRecent = async () => {
+    try {
+      const q = query(collection(db, 'customers'), orderBy('createdAt', 'desc'), limit(5));
+      const snap = await getDocs(q);
+      recentCustomers = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      renderRecentCustomers();
+    } catch (error) {
+      console.error('Error loading recent customers:', error);
+    }
+  };
+  loadRecent();
+}
+
+function renderRecentCustomers() {
   const tbody = document.getElementById('recentCustomers');
   if (!tbody) return;
   if (recentCustomers.length === 0) {
@@ -194,18 +264,11 @@ function updateRecentCustomers() {
   tbody.innerHTML = html;
 }
 
-function escapeHtml(text) {
-  if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
 // ============================
-// 7. تحديث الرسوم البيانية
+// 9. تحديث الرسوم البيانية (بأسماء الخدمات الحقيقية)
 // ============================
 function updateCharts(ordersData) {
-  // توزيع الخدمات (من الطلبات)
+  // ===== 9.1 مخطط توزيع الخدمات =====
   const serviceCount = {};
   ordersData.forEach(order => {
     const serviceId = order.serviceId;
@@ -213,9 +276,13 @@ function updateCharts(ordersData) {
       serviceCount[serviceId] = (serviceCount[serviceId] || 0) + 1;
     }
   });
-  const serviceLabels = Object.keys(serviceCount);
+
+  // تحويل المعرفات إلى أسماء باستخدام servicesMap
+  const serviceLabels = Object.keys(serviceCount).map(id => servicesMap[id] || id);
   const serviceValues = Object.values(serviceCount);
-  const colors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+  // ألوان ثابتة
+  const colors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
 
   const ctx1 = document.getElementById('servicesChart');
   if (ctx1) {
@@ -226,19 +293,28 @@ function updateCharts(ordersData) {
         labels: serviceLabels.length ? serviceLabels : ['لا توجد طلبات'],
         datasets: [{
           data: serviceLabels.length ? serviceValues : [1],
-          backgroundColor: colors.slice(0, serviceLabels.length || 1),
+          backgroundColor: serviceLabels.length ? colors.slice(0, serviceLabels.length) : ['#e5e7eb'],
           borderWidth: 0
         }]
       },
       options: {
         responsive: true,
         cutout: '65%',
-        plugins: { legend: { position: 'bottom' } }
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              usePointStyle: true,
+              padding: 16,
+              font: { size: 12 }
+            }
+          }
+        }
       }
     });
   }
 
-  // الطلبات الشهرية (آخر 6 أشهر)
+  // ===== 9.2 مخطط الطلبات الشهرية (آخر 6 أشهر) =====
   const monthlyOrders = {};
   const now = new Date();
   for (let i = 5; i >= 0; i--) {
@@ -274,9 +350,15 @@ function updateCharts(ordersData) {
       },
       options: {
         responsive: true,
-        plugins: { legend: { display: false } },
+        plugins: {
+          legend: { display: false }
+        },
         scales: {
-          y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(0,0,0,0.05)' },
+            ticks: { stepSize: 1 }
+          },
           x: { grid: { display: false } }
         }
       }
@@ -284,24 +366,4 @@ function updateCharts(ordersData) {
   }
 }
 
-// ============================
-// 8. دالة Toast (إذا لم تكن موجودة)
-// ============================
-function showToast(message, type = 'success') {
-  const colors = {
-    success: 'linear-gradient(to right, #00b09b, #96c93d)',
-    error: 'linear-gradient(to right, #ff5f6d, #ffc371)',
-    warning: 'linear-gradient(to right, #f7971e, #ffd200)',
-    info: 'linear-gradient(to right, #2193b0, #6dd5ed)'
-  };
-  Toastify({
-    text: message,
-    duration: 3000,
-    gravity: 'bottom',
-    position: 'left',
-    style: { background: colors[type] || colors.info },
-    className: 'rounded-3 shadow'
-  }).showToast();
-}
-
-console.log('✅ Dashboard ready with real data');
+console.log('✅ Dashboard ready with real data and service names');
