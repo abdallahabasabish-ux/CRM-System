@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>إدارة الطلبات - نظام إدارة الأعمال</title>
+  
+  <!-- Bootstrap 5 RTL -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet" />
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- Toastify -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <!-- Flatpickr (لتحديد التاريخ) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/airbnb.css" />
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ar.js"></script>
+  
+  <!-- الأنماط المخصصة -->
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+
+  <!-- ========================================= -->
+  <!-- SIDEBAR -->
+  <!-- ========================================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <i class="fas fa-cube"></i>
+      <span>نظام إدارة الأعمال</span>
+    </div>
+
+    <ul class="sidebar-menu">
+      <li><a href="dashboard.html"><i class="fas fa-chart-pie"></i> لوحة التحكم</a></li>
+      <li><a href="customers.html"><i class="fas fa-users"></i> العملاء</a></li>
+      <li><a href="services.html"><i class="fas fa-concierge-bell"></i> الخدمات</a></li>
+      <li><a href="employees.html"><i class="fas fa-user-tie"></i> الموظفون</a></li>
+      <li><a href="orders.html" class="active"><i class="fas fa-clipboard-list"></i> الطلبات</a></li>
+      <li><a href="#"><i class="fas fa-file-invoice"></i> الفواتير</a></li>
+      <li><a href="#"><i class="fas fa-credit-card"></i> المدفوعات</a></li>
+      <li><a href="#"><i class="fas fa-chart-line"></i> التقارير</a></li>
+      <li><a href="#"><i class="fas fa-cog"></i> الإعدادات</a></li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="sidebarAvatar">م</div>
+        <div>
+          <div class="fw-bold" id="sidebarUserName" style="font-size: 14px;">المستخدم</div>
+          <div class="text-muted" style="font-size: 12px;" id="sidebarUserEmail">user@email.com</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ========================================= -->
+  <!-- MAIN CONTENT -->
+  <!-- ========================================= -->
+  <main class="main-content">
+
+    <!-- Top Navbar -->
+    <nav class="top-navbar">
+      <div>
+        <button class="d-lg-none btn btn-sm" id="sidebarToggle" style="background: var(--border-color); border-radius: 8px;">
+          <i class="fas fa-bars"></i>
+        </button>
+        <span class="page-title me-2">الطلبات</span>
+      </div>
+      <div class="nav-actions">
+        <button class="theme-toggle" id="themeToggle" title="تبديل الوضع المظلم">
+          <i class="fas fa-moon"></i>
+        </button>
+        <button id="logoutBtn" title="تسجيل الخروج">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+      </div>
+    </nav>
+
+    <!-- المحتوى -->
+    <div class="container-fluid p-3 p-md-4">
+
+      <!-- شريط الأدوات -->
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <div class="d-flex gap-2 flex-wrap">
+          <div class="input-group" style="max-width: 350px;">
+            <span class="input-group-text bg-transparent border-color"><i class="fas fa-search"></i></span>
+            <input type="text" class="form-control" id="searchInput" placeholder="بحث برقم الطلب أو اسم العميل..." />
+          </div>
+        </div>
+        <button class="btn btn-primary" id="addOrderBtn">
+          <i class="fas fa-plus me-2"></i>طلب جديد
+        </button>
+      </div>
+
+      <!-- الجدول -->
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="ordersTable">
+              <thead class="bg-light">
+                <tr>
+                  <th># الطلب</th>
+                  <th>العميل</th>
+                  <th>الخدمة</th>
+                  <th>الموظف</th>
+                  <th>الحالة</th>
+                  <th>الأولوية</th>
+                  <th>الإجمالي</th>
+                  <th>المتبقي</th>
+                  <th>الإنجاز</th>
+                  <th style="width: 120px;">الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody id="ordersTableBody">
+                <tr><td colspan="10" class="text-center text-muted py-4">جاري تحميل الطلبات...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-3 text-muted small" id="resultCount">عرض 0 طلب</div>
+
+    </div>
+  </main>
+
+  <!-- ========================================= -->
+  <!-- MODAL: إضافة / تعديل طلب -->
+  <!-- ========================================= -->
+  <div class="modal fade" id="orderModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalTitle">طلب جديد</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="orderForm">
+            <input type="hidden" id="orderId" />
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="customer" class="form-label">العميل <span class="text-danger">*</span></label>
+                <select class="form-select" id="customer" required>
+                  <option value="">اختر عميل...</option>
+                </select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="service" class="form-label">الخدمة <span class="text-danger">*</span></label>
+                <select class="form-select" id="service" required>
+                  <option value="">اختر خدمة...</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="employee" class="form-label">الموظف المسؤول <span class="text-danger">*</span></label>
+                <select class="form-select" id="employee" required>
+                  <option value="">اختر موظف...</option>
+                </select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="deadline" class="form-label">موعد التسليم</label>
+                <input type="text" class="form-control" id="deadline" placeholder="اختر التاريخ" />
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-4 mb-3">
+                <label for="price" class="form-label">السعر ($)</label>
+                <input type="number" class="form-control" id="price" step="0.01" />
+              </div>
+              <div class="col-md-4 mb-3">
+                <label for="discount" class="form-label">الخصم ($)</label>
+                <input type="number" class="form-control" id="discount" step="0.01" min="0" value="0" />
+              </div>
+              <div class="col-md-4 mb-3">
+                <label for="tax" class="form-label">الضريبة (%)</label>
+                <input type="number" class="form-control" id="tax" step="0.01" min="0" value="0" />
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="total" class="form-label">الإجمالي</label>
+                <input type="text" class="form-control" id="total" readonly style="background: var(--bg-body);" />
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="paid" class="form-label">المدفوع ($)</label>
+                <input type="number" class="form-control" id="paid" step="0.01" min="0" value="0" />
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="status" class="form-label">الحالة</label>
+                <select class="form-select" id="status">
+                  <option value="جديد">جديد</option>
+                  <option value="قيد التنفيذ">قيد التنفيذ</option>
+                  <option value="مكتمل">مكتمل</option>
+                  <option value="ملغي">ملغي</option>
+                </select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="priority" class="form-label">الأولوية</label>
+                <select class="form-select" id="priority">
+                  <option value="منخفضة">منخفضة</option>
+                  <option value="متوسطة" selected>متوسطة</option>
+                  <option value="عالية">عالية</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="notes" class="form-label">ملاحظات</label>
+              <textarea class="form-control" id="notes" rows="2"></textarea>
+            </div>
+
+            <!-- مراحل التنفيذ (Checklist) -->
+            <div class="mb-3">
+              <label class="form-label fw-bold">مراحل التنفيذ</label>
+              <div id="stagesContainer" class="border rounded p-3" style="background: var(--bg-body);">
+                <!-- سيتم ملؤها بواسطة JavaScript -->
+              </div>
+              <div class="mt-2">
+                <span class="badge bg-primary" id="completionBadge">نسبة الإنجاز: 0%</span>
+              </div>
+            </div>
+
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="button" class="btn btn-primary" id="saveOrderBtn">
+            <i class="fas fa-save me-2"></i>حفظ
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================= -->
+  <!-- Import Map & JavaScript -->
+  <!-- ========================================= -->
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js",
+        "firebase/storage": "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js"
+      }
+    }
+  </script>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script type="module" src="assets/js/main.js"></script>
+  <script type="module" src="assets/js/pages/orders.js"></script>
+
+</body>
+</html>
