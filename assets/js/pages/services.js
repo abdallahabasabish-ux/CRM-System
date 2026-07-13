@@ -11,13 +11,9 @@ import {
   orderBy
 } from 'firebase/firestore';
 
-// ============================
-// متغيرات عامة
-// ============================
 let services = [];
 let editingId = null;
 let servicesListener = null;
-let serviceModalInstance = null;
 
 // ============================
 // 1. المصادقة
@@ -27,9 +23,15 @@ onAuthStateChangedCallback((user) => {
     window.location.href = '../login.html';
     return;
   }
-  document.getElementById('sidebarUserName').textContent = user.displayName || user.email;
-  document.getElementById('sidebarUserEmail').textContent = user.email;
-  document.getElementById('sidebarAvatar').textContent = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
+  // تحديث بيانات المستخدم في الـ Sidebar
+  const sidebarUserName = document.getElementById('sidebarUserName');
+  const sidebarUserEmail = document.getElementById('sidebarUserEmail');
+  const sidebarAvatar = document.getElementById('sidebarAvatar');
+  if (sidebarUserName) sidebarUserName.textContent = user.displayName || user.email;
+  if (sidebarUserEmail) sidebarUserEmail.textContent = user.email;
+  if (sidebarAvatar) {
+    sidebarAvatar.textContent = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
+  }
   
   listenToServices();
 });
@@ -37,41 +39,57 @@ onAuthStateChangedCallback((user) => {
 // ============================
 // 2. تسجيل الخروج وتبديل الوضع
 // ============================
-document.getElementById('logoutBtn').addEventListener('click', async () => {
+document.getElementById('logoutBtn')?.addEventListener('click', async () => {
   await logoutUser();
   window.location.href = '../login.html';
 });
 
-// تبديل الوضع المظلم (نفس الكود من قبل)
+// تبديل الوضع المظلم
 const themeToggle = document.getElementById('themeToggle');
 const htmlElement = document.documentElement;
 const savedTheme = localStorage.getItem('theme') || 'light';
 if (savedTheme === 'dark') {
   htmlElement.setAttribute('data-theme', 'dark');
-  themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+  if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
 }
-themeToggle.addEventListener('click', () => {
-  const currentTheme = htmlElement.getAttribute('data-theme');
-  if (currentTheme === 'dark') {
-    htmlElement.removeAttribute('data-theme');
-    localStorage.setItem('theme', 'light');
-    themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
-  } else {
-    htmlElement.setAttribute('data-theme', 'dark');
-    localStorage.setItem('theme', 'dark');
-    themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
-  }
-});
+if (themeToggle) {
+  themeToggle.addEventListener('click', () => {
+    const currentTheme = htmlElement.getAttribute('data-theme');
+    if (currentTheme === 'dark') {
+      htmlElement.removeAttribute('data-theme');
+      localStorage.setItem('theme', 'light');
+      themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+    } else {
+      htmlElement.setAttribute('data-theme', 'dark');
+      localStorage.setItem('theme', 'dark');
+      themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+    }
+  });
+}
 
-// تبديل Sidebar للشاشات الصغيرة
-document.getElementById('sidebarToggle')?.addEventListener('click', () => {
-  document.getElementById('sidebar').classList.toggle('open');
-});
+// تبديل Sidebar
+const sidebarToggle = document.getElementById('sidebarToggle');
+const sidebar = document.getElementById('sidebar');
+if (sidebarToggle && sidebar) {
+  sidebarToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('active');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (overlay) overlay.classList.toggle('active');
+  });
+}
+const overlay = document.getElementById('sidebar-overlay');
+if (overlay) {
+  overlay.addEventListener('click', () => {
+    sidebar.classList.remove('active');
+    overlay.classList.remove('active');
+  });
+}
 
 // ============================
 // 3. تهيئة Modal
 // ============================
 const modalElement = document.getElementById('serviceModal');
+let serviceModalInstance = null;
 if (modalElement) {
   serviceModalInstance = new bootstrap.Modal(modalElement);
 }
@@ -97,7 +115,7 @@ function showToast(message, type = 'success') {
 }
 
 // ============================
-// 5. قراءة الخدمات من Firestore (Realtime)
+// 5. قراءة الخدمات من Firestore
 // ============================
 function listenToServices() {
   const servicesRef = collection(db, 'services');
@@ -120,7 +138,7 @@ function listenToServices() {
       ...doc.data()
     }));
 
-    const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
+    const searchTerm = document.getElementById('searchInput')?.value.trim().toLowerCase() || '';
     const filtered = searchTerm ? filterServices(searchTerm) : services;
     renderTable(filtered);
     document.getElementById('resultCount').textContent = `عرض ${filtered.length} خدمة`;
@@ -183,7 +201,7 @@ function escapeHtml(text) {
 }
 
 // ============================
-// 7. البحث والفلترة
+// 7. البحث
 // ============================
 function filterServices(term) {
   return services.filter(s =>
@@ -192,7 +210,7 @@ function filterServices(term) {
   );
 }
 
-document.getElementById('searchInput').addEventListener('input', (e) => {
+document.getElementById('searchInput')?.addEventListener('input', (e) => {
   const term = e.target.value.trim().toLowerCase();
   const filtered = term ? filterServices(term) : services;
   renderTable(filtered);
@@ -200,20 +218,19 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
 });
 
 // ============================
-// 8. فتح مودال الإضافة
+// 8. مودال الإضافة
 // ============================
-document.getElementById('addServiceBtn').addEventListener('click', () => {
+document.getElementById('addServiceBtn')?.addEventListener('click', () => {
   editingId = null;
   document.getElementById('modalTitle').textContent = 'إضافة خدمة جديدة';
   document.getElementById('serviceForm').reset();
   document.getElementById('serviceId').value = '';
-  // ضبط القيم الافتراضية
   document.getElementById('status').value = 'نشط';
-  serviceModalInstance.show();
+  if (serviceModalInstance) serviceModalInstance.show();
 });
 
 // ============================
-// 9. فتح مودال التعديل
+// 9. مودال التعديل
 // ============================
 function openEditModal(id) {
   const service = services.find(s => s.id === id);
@@ -234,13 +251,13 @@ function openEditModal(id) {
   document.getElementById('icon').value = service.icon || '';
   document.getElementById('notes').value = service.notes || '';
   
-  serviceModalInstance.show();
+  if (serviceModalInstance) serviceModalInstance.show();
 }
 
 // ============================
-// 10. حفظ البيانات (إضافة / تعديل)
+// 10. حفظ البيانات
 // ============================
-document.getElementById('saveServiceBtn').addEventListener('click', async () => {
+document.getElementById('saveServiceBtn')?.addEventListener('click', async () => {
   const name = document.getElementById('name').value.trim();
   const price = parseFloat(document.getElementById('price').value);
   const category = document.getElementById('category').value;
@@ -276,7 +293,7 @@ document.getElementById('saveServiceBtn').addEventListener('click', async () => 
       await addDoc(collection(db, 'services'), data);
       showToast('تم إضافة الخدمة بنجاح', 'success');
     }
-    serviceModalInstance.hide();
+    if (serviceModalInstance) serviceModalInstance.hide();
   } catch (error) {
     console.error('Error saving service:', error);
     showToast('حدث خطأ أثناء الحفظ', 'error');
@@ -287,7 +304,7 @@ document.getElementById('saveServiceBtn').addEventListener('click', async () => 
 });
 
 // ============================
-// 11. حذف خدمة مع تأكيد
+// 11. حذف خدمة
 // ============================
 async function confirmDelete(id) {
   const service = services.find(s => s.id === id);
@@ -316,7 +333,7 @@ async function confirmDelete(id) {
 }
 
 // ============================
-// 12. إعادة تعيين النموذج عند الإغلاق
+// 12. إعادة تعيين النموذج
 // ============================
 modalElement?.addEventListener('hidden.bs.modal', () => {
   document.getElementById('serviceForm').reset();
