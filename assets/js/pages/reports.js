@@ -1,3 +1,6 @@
+// =============================================================
+// reports.js - النسخة المحسّنة النهائية
+// =============================================================
 import { onAuthStateChangedCallback, logoutUser } from '../auth.js';
 import { db } from '../firebase-config.js';
 import {
@@ -371,10 +374,10 @@ function createCharts(orders, payments) {
 }
 
 // =============================================================
-// 8.  التقارير الجدولية
+// 8.  التقارير الجدولية (مع صفوف الإجمالي)
 // =============================================================
 
-// 8.1 تقرير الطلبات (مع إجمالي في الأسفل)
+// 8.1 تقرير الطلبات
 function updateOrdersReport(orders) {
   const tbody = document.getElementById('ordersReportBody');
   if (!tbody) return;
@@ -512,7 +515,7 @@ function updateEmployeesReport() {
   tbody.innerHTML = html;
 }
 
-// 8.4 تقرير المدفوعات
+// 8.4 تقرير المدفوعات (يعرض اسم العميل بشكل صحيح)
 function updatePaymentsReport(payments) {
   const tbody = document.getElementById('paymentsReportBody');
   if (!tbody) return;
@@ -527,8 +530,12 @@ function updatePaymentsReport(payments) {
   let amountSum = 0;
 
   data.forEach(p => {
-    const customer = state.customers.find(c => c.id === p.customerId);
-    const customerName = customer ? customer.name : (p.customerName || 'غير معروف');
+    // جلب اسم العميل من payment أو البحث في قائمة العملاء
+    let customerName = p.customerName || 'غير معروف';
+    if (!p.customerName) {
+      const customer = state.customers.find(c => c.id === p.customerId);
+      customerName = customer ? customer.name : 'غير معروف';
+    }
     amountSum += p.amount || 0;
 
     html += `
