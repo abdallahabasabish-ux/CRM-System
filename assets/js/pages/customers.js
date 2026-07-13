@@ -11,8 +11,7 @@ import {
   deleteDoc,
   onSnapshot,
   query,
-  orderBy,
-  Timestamp
+  orderBy
 } from 'firebase/firestore';
 
 // =============================================================
@@ -158,7 +157,7 @@ function initSidebar() {
 }
 
 // =============================================================
-// 5.  قراءة العملاء (Realtime)
+// 5.  قراءة العملاء (Realtime) - مع تحديث الرصيد
 // =============================================================
 function listenToCustomers() {
   const q = query(collection(db, 'customers'), orderBy('createdAt', 'desc'));
@@ -174,6 +173,7 @@ function listenToCustomers() {
         customers = [];
         renderTable([]);
         document.getElementById('resultCount').textContent = 'عرض 0 عميل';
+        document.getElementById('totalCustomersBadge').textContent = '0';
         return;
       }
 
@@ -186,6 +186,7 @@ function listenToCustomers() {
       const filtered = searchTerm ? filterCustomers(searchTerm) : customers;
       renderTable(filtered);
       document.getElementById('resultCount').textContent = `عرض ${filtered.length} عميل`;
+      document.getElementById('totalCustomersBadge').textContent = customers.length;
     },
     (error) => {
       console.error('Error listening to customers:', error);
@@ -212,12 +213,18 @@ function renderTable(data) {
     const balance = customer.balance || 0;
 
     // تحديد لون المتبقي
-    let balanceClass = 'customer-balance zero';
-    if (balance > 0) balanceClass = 'customer-balance positive';
-    else if (balance < 0) balanceClass = 'customer-balance negative';
+    let balanceClass = 'balance-zero';
+    let balanceText = formatCurrency(balance);
+    if (balance > 0) {
+      balanceClass = 'balance-positive';
+      balanceText = '+' + formatCurrency(balance);
+    } else if (balance < 0) {
+      balanceClass = 'balance-negative';
+      balanceText = '-' + formatCurrency(Math.abs(balance));
+    }
 
     html += `
-      <tr>
+      <tr class="customer-row">
         <td>${index + 1}</td>
         <td>
           <div class="d-flex align-items-center gap-2">
@@ -228,8 +235,8 @@ function renderTable(data) {
         <td>${escapeHtml(customer.phone || '')}</td>
         <td>${escapeHtml(customer.email || '')}</td>
         <td>${escapeHtml(customer.company || '')}</td>
-        <td>${formatCurrency(totalPaid)}</td>
-        <td class="${balanceClass}">${formatCurrency(balance)}</td>
+        <td class="total-paid">${formatCurrency(totalPaid)}</td>
+        <td class="${balanceClass}">${balanceText}</td>
         <td>
           <button class="btn btn-sm btn-outline-primary action-btn" data-action="edit" data-id="${customer.id}" title="تعديل">
             <i class="fas fa-edit"></i>
@@ -351,11 +358,9 @@ async function saveCustomer() {
 
   try {
     if (id) {
-      // تعديل
       await updateDoc(doc(db, 'customers', id), data);
       showToast('تم تحديث العميل بنجاح', 'success');
     } else {
-      // إضافة
       data.createdAt = new Date().toISOString();
       data.totalPaid = 0;
       data.balance = 0;
