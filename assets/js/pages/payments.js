@@ -1,5 +1,5 @@
 // =============================================================
-// payments.js - النسخة الاحترافية النهائية
+// payments.js - النسخة الاحترافية النهائية (تم إصلاح الحذف)
 // يدعم: إضافة، تعديل، حذف، تحديث رصيد العميل (totalPaid & balance)
 // =============================================================
 import { onAuthStateChangedCallback, logoutUser } from '../auth.js';
@@ -260,7 +260,7 @@ function renderTable(data) {
 }
 
 // =============================================================
-// 8.1 Event Delegation للأزرار (حل المشكلة الأهم)
+// 8.1 Event Delegation للأزرار
 // =============================================================
 function setupTableActions() {
   const tbody = document.getElementById('paymentsTableBody');
@@ -383,7 +383,7 @@ document.getElementById('savePaymentBtn')?.addEventListener('click', async () =>
 
   try {
     await runTransaction(db, async (transaction) => {
-      // 1. جلب بيانات العميل
+      // 1. جلب بيانات العميل (قراءة أولاً)
       const customerRef = doc(db, 'customers', customerId);
       const customerDoc = await transaction.get(customerRef);
       if (!customerDoc.exists()) throw new Error('العميل غير موجود');
@@ -394,23 +394,21 @@ document.getElementById('savePaymentBtn')?.addEventListener('click', async () =>
       let currentBalance = customerData.balance || 0;
 
       if (paymentId) {
-        // تعديل: نطرح المبلغ القديم ونضيف الجديد
         currentTotalPaid = currentTotalPaid - oldAmount + amount;
         currentBalance = currentBalance + oldAmount - amount;
       } else {
-        // إضافة: نزيد المبلغ
         currentTotalPaid = currentTotalPaid + amount;
         currentBalance = currentBalance - amount;
       }
 
-      // 3. تحديث العميل
+      // 3. تحديث العميل (كتابة)
       transaction.update(customerRef, {
         totalPaid: currentTotalPaid,
         balance: currentBalance,
         updatedAt: new Date().toISOString()
       });
 
-      // 4. حفظ الدفعة
+      // 4. حفظ الدفعة (كتابة)
       const paymentData = {
         customerId,
         customerName: customerData.name || null,
@@ -445,7 +443,7 @@ document.getElementById('savePaymentBtn')?.addEventListener('click', async () =>
 });
 
 // =============================================================
-// 13. حذف دفعة (مع Transaction وتحديث العميل) - تم إصلاحه بالكامل
+// 13. حذف دفعة (مع Transaction وتحديث العميل) - تم الإصلاح الجذري لقاعدة الترتيب
 // =============================================================
 async function confirmDelete(id) {
   const payment = payments.find(p => p.id === id);
@@ -467,8 +465,8 @@ async function confirmDelete(id) {
 
   if (!result.isConfirmed) return;
 
-  // إظهار مؤشر تحميل على الزر
-  const deleteBtn = document.querySelector(`.action-btn[data-id="${id}"]`);
+  // إظهار مؤشر تحميل محدد على الزر المضغوط بدقة
+  const deleteBtn = document.querySelector(`.action-btn[data-action="delete"][data-id="${id}"]`);
   if (deleteBtn) {
     deleteBtn.disabled = true;
     deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
@@ -476,17 +474,19 @@ async function confirmDelete(id) {
 
   try {
     await runTransaction(db, async (transaction) => {
-      // 1. حذف الدفعة
+      // الـ Rule الأساسي في الـ Transaction: القراءات (Gets) أولاً دائماً!
+      const customerRef = doc(db, 'customers', payment.customerId);
+      const customerDoc = await transaction.get(customerRef);
+      
+      // الآن نقوم بالعمليات الهيكلية (الحذف والتحديث)
       const paymentRef = doc(db, 'payments', id);
       transaction.delete(paymentRef);
 
-      // 2. تحديث رصيد العميل (إعادة المبلغ إلى الرصيد)
-      const customerRef = doc(db, 'customers', payment.customerId);
-      const customerDoc = await transaction.get(customerRef);
       if (customerDoc.exists()) {
         const data = customerDoc.data();
         const newTotalPaid = (data.totalPaid || 0) - payment.amount;
         const newBalance = (data.balance || 0) + payment.amount;
+        
         transaction.update(customerRef, {
           totalPaid: newTotalPaid,
           balance: newBalance,
@@ -515,4 +515,4 @@ modalElement?.addEventListener('hidden.bs.modal', () => {
   document.getElementById('oldAmount').value = '';
 });
 
-console.log('✅ Payments.js loaded successfully (Professional version)');
+console.log('✅ Payments.js loaded successfully (Fixed Delete Transaction)');
