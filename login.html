@@ -3,49 +3,322 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>تسجيل الدخول</title>
+  <title>تسجيل الدخول - نظام إدارة الأعمال</title>
+
+  <!-- Bootstrap 5 RTL -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet" />
+  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <!-- Toastify -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+
+  <!-- الأنماط المخصصة -->
   <link rel="stylesheet" href="assets/css/style.css" />
+
+  <style>
+    /* تخصيص صفحة الدخول */
+    body {
+      background: var(--bg-body);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      font-family: 'Almarai', sans-serif;
+    }
+
+    .login-card {
+      max-width: 440px;
+      width: 100%;
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-lg);
+      padding: 40px 32px;
+      transition: var(--transition);
+    }
+
+    .login-card .brand {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .login-card .brand .logo-icon {
+      width: 64px;
+      height: 64px;
+      background: var(--color-primary);
+      border-radius: var(--radius-md);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+
+    .login-card .brand h2 {
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0;
+      font-size: 24px;
+    }
+
+    .login-card .brand p {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    .login-card .nav-tabs .nav-link {
+      font-weight: 600;
+      color: var(--text-muted);
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: 8px 0;
+      margin: 0 12px;
+    }
+
+    .login-card .nav-tabs .nav-link.active {
+      color: var(--color-primary);
+      border-bottom-color: var(--color-primary);
+      background: transparent;
+    }
+
+    .login-card .nav-tabs .nav-link:hover {
+      color: var(--text-primary);
+      border-bottom-color: var(--border-color);
+    }
+
+    .login-card .form-group {
+      margin-bottom: 18px;
+    }
+
+    .login-card .form-label {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .login-card .form-control {
+      background: var(--bg-input);
+      border-color: var(--border-color);
+      color: var(--text-primary);
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+    }
+
+    .login-card .form-control:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(255, 102, 0, 0.15);
+    }
+
+    .login-card .btn-primary {
+      width: 100%;
+      padding: 12px;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      background: var(--color-primary);
+      border: none;
+      color: #fff;
+      transition: var(--transition);
+    }
+
+    .login-card .btn-primary:hover {
+      background: var(--color-primary-dark);
+      box-shadow: 0 4px 16px rgba(255, 102, 0, 0.3);
+    }
+
+    .login-card .btn-google {
+      width: 100%;
+      padding: 12px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      background: #fff;
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .login-card .btn-google:hover {
+      background: var(--bg-input);
+      border-color: var(--text-muted);
+    }
+
+    .login-card .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 20px 0;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .login-card .divider::before,
+    .login-card .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border-color);
+    }
+
+    .login-card .extra-links {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-top: 14px;
+    }
+
+    .login-card .extra-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: var(--transition);
+    }
+
+    .login-card .extra-links a:hover {
+      color: var(--color-primary);
+    }
+
+    .login-card .error-msg {
+      color: #dc3545;
+      font-size: 13px;
+      margin-top: 8px;
+      display: none;
+    }
+
+    /* Dark mode overrides */
+    [data-theme="dark"] .login-card .btn-google {
+      background: var(--bg-card);
+      border-color: var(--border-dark);
+    }
+
+    [data-theme="dark"] .login-card .btn-google:hover {
+      background: var(--bg-sidebar-hover);
+    }
+
+    /* Responsive */
+    @media (max-width: 576px) {
+      .login-card {
+        padding: 28px 20px;
+      }
+    }
+  </style>
 </head>
-<body class="bg-light">
+<body>
 
-  <div class="container vh-100 d-flex justify-content-center align-items-center">
-    <div class="card shadow-lg p-4" style="max-width: 420px; width: 100%; border-radius: 20px;">
-      <div class="text-center mb-4">
-        <i class="fas fa-building fa-3x text-primary"></i>
-        <h4 class="mt-2">نظام إدارة الأعمال</h4>
-        <p class="text-muted">تسجيل الدخول إلى لوحة التحكم</p>
-      </div>
+  <div class="login-card">
+    <!-- الشعار والعلامة التجارية -->
+    <div class="brand">
+      <div class="logo-icon">ن</div>
+      <h2>نظام الإدارة</h2>
+      <p>منصة متكاملة لإدارة أعمالك</p>
+    </div>
 
-      <form id="loginForm">
-        <div class="mb-3">
-          <label for="email" class="form-label">البريد الإلكتروني</label>
-          <div class="input-group">
-            <span class="input-group-text"><i class="fas fa-envelope"></i></span>
-            <input type="email" class="form-control" id="email" placeholder="admin@company.com" required />
+    <!-- تبويبات تسجيل الدخول / إنشاء حساب -->
+    <ul class="nav nav-tabs justify-content-center" id="authTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="login-tab" data-bs-toggle="tab" data-bs-target="#loginPanel" type="button" role="tab">تسجيل الدخول</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="register-tab" data-bs-toggle="tab" data-bs-target="#registerPanel" type="button" role="tab">إنشاء حساب</button>
+      </li>
+    </ul>
+
+    <div class="tab-content mt-4">
+      <!-- ====== لوحة تسجيل الدخول ====== -->
+      <div class="tab-pane fade show active" id="loginPanel" role="tabpanel">
+        <form id="loginForm">
+          <div class="form-group">
+            <label for="loginEmail" class="form-label">البريد الإلكتروني</label>
+            <input type="email" class="form-control" id="loginEmail" placeholder="example@company.com" required />
           </div>
-        </div>
-        <div class="mb-3">
-          <label for="password" class="form-label">كلمة المرور</label>
-          <div class="input-group">
-            <span class="input-group-text"><i class="fas fa-lock"></i></span>
-            <input type="password" class="form-control" id="password" placeholder="••••••••" required />
-            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
-              <i class="fas fa-eye"></i>
-            </button>
+          <div class="form-group">
+            <label for="loginPassword" class="form-label">كلمة المرور</label>
+            <input type="password" class="form-control" id="loginPassword" placeholder="••••••••" required />
           </div>
-        </div>
-        <div class="d-grid gap-2">
-          <button type="submit" class="btn btn-primary py-2" id="loginBtn">
+          <button type="submit" class="btn btn-primary" id="loginBtn">
             <i class="fas fa-sign-in-alt me-2"></i>تسجيل الدخول
           </button>
+          <div id="loginError" class="error-msg"></div>
+        </form>
+
+        <!-- الفاصل -->
+        <div class="divider">أو</div>
+
+        <!-- زر تسجيل الدخول بـ Google -->
+        <button class="btn-google" id="googleLoginBtn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48">
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+          </svg>
+          تسجيل الدخول عبر Google
+        </button>
+
+        <div class="extra-links">
+          <a href="#" id="forgotPasswordLink">نسيت كلمة المرور؟</a>
         </div>
-        <div id="loginError" class="mt-3 text-danger text-center small" style="display: none;"></div>
-      </form>
+      </div>
+
+      <!-- ====== لوحة إنشاء حساب ====== -->
+      <div class="tab-pane fade" id="registerPanel" role="tabpanel">
+        <form id="registerForm">
+          <div class="form-group">
+            <label for="registerName" class="form-label">الاسم كاملاً</label>
+            <input type="text" class="form-control" id="registerName" placeholder="أحمد محمد" />
+          </div>
+          <div class="form-group">
+            <label for="registerEmail" class="form-label">البريد الإلكتروني</label>
+            <input type="email" class="form-control" id="registerEmail" placeholder="example@company.com" required />
+          </div>
+          <div class="form-group">
+            <label for="registerPassword" class="form-label">كلمة المرور</label>
+            <input type="password" class="form-control" id="registerPassword" placeholder="••••••••" required minlength="6" />
+          </div>
+          <div class="form-group">
+            <label for="registerConfirm" class="form-label">تأكيد كلمة المرور</label>
+            <input type="password" class="form-control" id="registerConfirm" placeholder="••••••••" required minlength="6" />
+          </div>
+          <button type="submit" class="btn btn-primary" id="registerBtn">
+            <i class="fas fa-user-plus me-2"></i>إنشاء حساب
+          </button>
+          <div id="registerError" class="error-msg"></div>
+        </form>
+
+        <!-- الفاصل -->
+        <div class="divider">أو</div>
+
+        <!-- زر التسجيل عبر Google -->
+        <button class="btn-google" id="googleRegisterBtn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48">
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+          </svg>
+          التسجيل عبر Google
+        </button>
+      </div>
+    </div>
+
+    <!-- زر تبديل الوضع المظلم -->
+    <div class="text-center mt-3">
+      <button class="icon-btn theme-toggle" id="themeToggle" title="تبديل الوضع المظلم" style="font-size:20px;color:var(--text-muted);">
+        <i class="fas fa-moon"></i>
+      </button>
     </div>
   </div>
 
+  <!-- ========================================================= -->
+  <!-- Import Map & Firebase -->
+  <!-- ========================================================= -->
   <script type="importmap">
     {
       "imports": {
@@ -58,5 +331,7 @@
   </script>
 
   <script type="module" src="assets/js/main.js"></script>
+  <script type="module" src="assets/js/login.js"></script>
+
 </body>
 </html>
