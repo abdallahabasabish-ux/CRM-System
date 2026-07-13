@@ -1,23 +1,17 @@
-// =============================================================
-// treasury.js - إدارة الخزينة الشخصية
-// يدعم: إيداع، سحب، تحويل، عرض الرصيد، سجل المعاملات
-// =============================================================
 import { onAuthStateChangedCallback, logoutUser } from '../auth.js';
 import { db } from '../firebase-config.js';
 import {
   collection,
   addDoc,
-  doc,
-  updateDoc,
-  deleteDoc,
+  getDocs,
   onSnapshot,
   query,
   orderBy,
-  where,
-  getDocs,
+  Timestamp,
+  doc,
+  updateDoc,
   runTransaction,
-  serverTimestamp,
-  Timestamp
+  getDoc
 } from 'firebase/firestore';
 
 // =============================================================
@@ -28,6 +22,7 @@ let customers = [];
 let treasuryModalInstance = null;
 let currentFilter = 'all';
 let transactionsListener = null;
+let totalPayments = 0;
 
 // =============================================================
 // 2.  دوال مساعدة
@@ -89,9 +84,7 @@ onAuthStateChangedCallback(async (user) => {
   if (sidebarUserName) sidebarUserName.textContent = user.displayName || user.email;
   if (sidebarUserEmail) sidebarUserEmail.textContent = user.email;
   if (sidebarAvatar) {
-    sidebarAvatar.textContent = user.displayName
-      ? user.displayName.charAt(0).toUpperCase()
-      : user.email.charAt(0).toUpperCase();
+    sidebarAvatar.textContent = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
   }
 
   initDarkMode();
@@ -108,8 +101,11 @@ onAuthStateChangedCallback(async (user) => {
     treasuryModalInstance = new bootstrap.Modal(modalEl);
   }
 
-  // تحميل العملاء لقائمة الاختيار
+  // تحميل العملاء
   await loadCustomers();
+
+  // جلب إجمالي المدفوعات
+  await loadTotalPayments();
 
   // تحميل المعاملات
   listenToTransactions();
@@ -137,6 +133,7 @@ onAuthStateChangedCallback(async (user) => {
     document.getElementById('sourceGroup').style.display = 'block';
     document.getElementById('customerGroup').style.display = 'none';
     document.getElementById('targetGroup').style.display = 'none';
+    document.getElementById('txError').style.display = 'none';
   });
 });
 
@@ -147,7 +144,6 @@ function initDarkMode() {
   const themeToggle = document.getElementById('themeToggle');
   const htmlElement = document.documentElement;
   const savedTheme = localStorage.getItem('theme') || 'light';
-
   if (savedTheme === 'dark') {
     htmlElement.setAttribute('data-theme', 'dark');
     if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
@@ -155,7 +151,6 @@ function initDarkMode() {
     htmlElement.removeAttribute('data-theme');
     if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
   }
-
   if (themeToggle) {
     themeToggle.addEventListener('click', function() {
       const currentTheme = htmlElement.getAttribute('data-theme');
@@ -176,14 +171,12 @@ function initSidebar() {
   const sidebarToggle = document.getElementById('sidebarToggle');
   const sidebar = document.getElementById('sidebar');
   const overlay = document.getElementById('sidebar-overlay');
-
   if (sidebarToggle && sidebar) {
     sidebarToggle.addEventListener('click', () => {
       sidebar.classList.toggle('active');
       if (overlay) overlay.classList.toggle('active');
     });
   }
-
   if (overlay) {
     overlay.addEventListener('click', () => {
       sidebar.classList.remove('active');
@@ -193,7 +186,7 @@ function initSidebar() {
 }
 
 // =============================================================
-// 5.  تحميل العملاء
+// 5.  تحميل العملاء وإجمالي المدفوعات
 // =============================================================
 async function loadCustomers() {
   try {
@@ -202,6 +195,15 @@ async function loadCustomers() {
     populateCustomerSelect();
   } catch (error) {
     console.error('Error loading customers:', error);
+  }
+}
+
+async function loadTotalPayments() {
+  try {
+    const snap = await getDocs(collection(db, 'payments'));
+    totalPayments = snap.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
+  } catch (error) {
+    console.error('Error loading total payments:', error);
   }
 }
 
@@ -224,22 +226,20 @@ function listenToTransactions() {
   if (transactionsListener) {
     transactionsListener();
   }
-
   transactionsListener = onSnapshot(
     query(collection(db, 'treasury'), orderBy('createdAt', 'desc')),
     (snapshot) => {
       if (snapshot.empty) {
         transactions = [];
         renderTransactions();
+        updateStats();
         return;
       }
-
       transactions = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt || null
       }));
-
       renderTransactions();
       updateStats();
     },
@@ -256,32 +256,26 @@ function listenToTransactions() {
 function renderTransactions() {
   const container = document.getElementById('transactionsList');
   const empty = document.getElementById('noTransactions');
-
   let filtered = transactions;
   if (currentFilter !== 'all') {
     filtered = transactions.filter(t => t.type === currentFilter);
   }
-
   if (filtered.length === 0) {
     container.style.display = 'none';
     empty.style.display = 'block';
     return;
   }
-
   empty.style.display = 'none';
   container.style.display = 'block';
-
   let html = '';
-  filtered.forEach((tx, index) => {
+  filtered.forEach((tx) => {
     const isDeposit = tx.type === 'deposit';
     const isWithdraw = tx.type === 'withdraw';
     const isTransfer = tx.type === 'transfer';
-
     let iconClass = 'transfer';
     let icon = 'fa-exchange-alt';
     let amountClass = 'positive';
     let sign = '+';
-
     if (isDeposit) {
       iconClass = 'deposit';
       icon = 'fa-arrow-down';
@@ -298,10 +292,8 @@ function renderTransactions() {
       amountClass = 'positive';
       sign = '+';
     }
-
     const title = tx.title || tx.type || 'معاملة';
-    const sub = tx.note || tx.source || '';
-
+    const sub = tx.note || tx.source || tx.target || '';
     html += `
       <div class="transaction-item">
         <div class="tx-icon ${iconClass}">
@@ -315,24 +307,19 @@ function renderTransactions() {
       </div>
     `;
   });
-
   container.innerHTML = html;
 }
 
 // =============================================================
-// 8.  تحديث الإحصائيات
+// 8.  تحديث الإحصائيات والرصيد
 // =============================================================
 function updateStats() {
   const totalDeposits = transactions.filter(t => t.type === 'deposit')
     .reduce((sum, t) => sum + (t.amount || 0), 0);
-
   const totalWithdrawals = transactions.filter(t => t.type === 'withdraw')
     .reduce((sum, t) => sum + (t.amount || 0), 0);
-
   const totalTransfers = transactions.filter(t => t.type === 'transfer')
     .reduce((sum, t) => sum + (t.amount || 0), 0);
-
-  // حساب الرصيد = الإيداعات - السحوبات + التحويلات (حسب التصميم)
   const balance = totalDeposits - totalWithdrawals + totalTransfers;
 
   document.getElementById('currentBalance').textContent = formatCurrency(balance);
@@ -351,12 +338,11 @@ function openModal(type) {
     withdraw: 'سحب',
     transfer: 'تحويل'
   };
-
   document.getElementById('treasuryModalTitle').textContent = titles[type] || 'معاملة';
   document.getElementById('txType').value = type;
   document.getElementById('treasuryForm').reset();
+  document.getElementById('txError').style.display = 'none';
 
-  // تفعيل Flatpickr
   if (typeof flatpickr !== 'undefined') {
     flatpickr('#txDate', {
       locale: 'ar',
@@ -365,16 +351,16 @@ function openModal(type) {
     });
   }
 
-  // إظهار/إخفاء الحقول حسب النوع
   const sourceGroup = document.getElementById('sourceGroup');
   const customerGroup = document.getElementById('customerGroup');
   const targetGroup = document.getElementById('targetGroup');
 
+  // إظهار/إخفاء الحقول حسب النوع
   if (type === 'deposit') {
     sourceGroup.style.display = 'block';
     customerGroup.style.display = 'block';
     targetGroup.style.display = 'none';
-    document.getElementById('txSource').value = 'customer';
+    document.getElementById('txSource').value = 'payments';
   } else if (type === 'withdraw') {
     sourceGroup.style.display = 'none';
     customerGroup.style.display = 'none';
@@ -383,13 +369,13 @@ function openModal(type) {
     sourceGroup.style.display = 'block';
     customerGroup.style.display = 'block';
     targetGroup.style.display = 'block';
-    document.getElementById('txSource').value = 'customer';
+    document.getElementById('txSource').value = 'payments';
   }
 
-  // إظهار/إخفاء حقل العميل بناءً على المصدر
+  // ربط تغيير المصدر
   document.getElementById('txSource')?.addEventListener('change', function() {
     const customerGroup = document.getElementById('customerGroup');
-    if (this.value === 'customer') {
+    if (this.value === 'payments') {
       customerGroup.style.display = 'block';
     } else {
       customerGroup.style.display = 'none';
@@ -400,17 +386,32 @@ function openModal(type) {
 }
 
 // =============================================================
-// 10.  حفظ المعاملة
+// 10.  حفظ المعاملة (مع التحقق من الرصيد عند السحب)
 // =============================================================
 async function saveTransaction() {
   const type = document.getElementById('txType').value;
   const amount = parseFloat(document.getElementById('txAmount').value);
   const date = document.getElementById('txDate').value || new Date().toISOString().slice(0, 10);
   const note = document.getElementById('txNote').value.trim();
+  const errorDiv = document.getElementById('txError');
+
+  errorDiv.style.display = 'none';
+  errorDiv.textContent = '';
 
   if (!amount || amount <= 0) {
-    showToast('الرجاء إدخال مبلغ صحيح', 'warning');
+    errorDiv.textContent = 'الرجاء إدخال مبلغ صحيح';
+    errorDiv.style.display = 'block';
     return;
+  }
+
+  // التحقق من الرصيد عند السحب
+  if (type === 'withdraw') {
+    const currentBalance = parseFloat(document.getElementById('currentBalance').textContent.replace(/[$,]/g, '')) || 0;
+    if (amount > currentBalance) {
+      errorDiv.textContent = `⚠️ لا يوجد رصيد كافٍ. الرصيد الحالي: ${formatCurrency(currentBalance)}`;
+      errorDiv.style.display = 'block';
+      return;
+    }
   }
 
   const saveBtn = document.getElementById('saveTxBtn');
@@ -422,7 +423,7 @@ async function saveTransaction() {
       type,
       amount,
       note,
-      date: date ? new Date(date + 'T00:00:00') : serverTimestamp(),
+      date: date ? new Date(date + 'T00:00:00') : new Date(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -431,7 +432,7 @@ async function saveTransaction() {
     if (type === 'deposit' || type === 'transfer') {
       const source = document.getElementById('txSource').value;
       data.source = source;
-      if (source === 'customer') {
+      if (source === 'payments') {
         const customerId = document.getElementById('txCustomer').value;
         if (customerId) {
           const customer = customers.find(c => c.id === customerId);
@@ -439,7 +440,15 @@ async function saveTransaction() {
           data.customerName = customer ? customer.name : null;
           data.title = `إيداع من ${customer ? customer.name : 'عميل'}`;
         } else {
-          data.title = 'إيداع';
+          data.title = 'إيداع من المدفوعات';
+        }
+        // التحقق من أن المبلغ لا يتجاوز إجمالي المدفوعات
+        if (amount > totalPayments) {
+          errorDiv.textContent = `⚠️ المبلغ المطلوب (${formatCurrency(amount)}) أكبر من إجمالي المدفوعات (${formatCurrency(totalPayments)})`;
+          errorDiv.style.display = 'block';
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = '<i class="fas fa-save me-2"></i>حفظ';
+          return;
         }
       } else {
         data.title = 'إيداع خارجي';
@@ -460,14 +469,13 @@ async function saveTransaction() {
       data.title = 'تحويل';
     }
 
-    // حفظ في Firestore
     await addDoc(collection(db, 'treasury'), data);
-
     showToast('تم تسجيل المعاملة بنجاح', 'success');
     if (treasuryModalInstance) treasuryModalInstance.hide();
   } catch (error) {
     console.error('Error saving transaction:', error);
-    showToast('حدث خطأ أثناء الحفظ', 'error');
+    errorDiv.textContent = 'حدث خطأ أثناء الحفظ';
+    errorDiv.style.display = 'block';
   } finally {
     saveBtn.disabled = false;
     saveBtn.innerHTML = '<i class="fas fa-save me-2"></i>حفظ';
