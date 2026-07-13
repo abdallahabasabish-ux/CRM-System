@@ -59,6 +59,7 @@
       display: flex;
       gap: 12px;
       margin-top: 16px;
+      flex-wrap: wrap;
     }
     .treasury-balance-card .balance-actions .btn {
       background: rgba(255, 255, 255, 0.15);
@@ -113,7 +114,6 @@
     .stat-icon.withdraw { color: #dc3545; }
     .stat-icon.transfer { color: var(--color-primary); }
 
-    /* تنسيق المعاملات */
     .transaction-item {
       display: flex;
       align-items: center;
@@ -163,6 +163,16 @@
       background: var(--color-primary);
       color: #fff;
       border-color: var(--color-primary);
+    }
+
+    #targetGroup {
+      display: none;
+    }
+    #sourceGroup {
+      display: block;
+    }
+    #customerGroup {
+      display: none;
     }
   </style>
 </head>
@@ -298,22 +308,24 @@
           <form id="treasuryForm">
             <input type="hidden" id="txType" value="deposit" />
 
+            <!-- المصدر (لإيداع فقط) -->
             <div class="form-group" id="sourceGroup">
               <label for="txSource" class="form-label">المصدر <span class="text-danger">*</span></label>
               <select class="form-select" id="txSource">
-                <option value="customer">من عميل</option>
-                <option value="transfer">تحويل داخلي</option>
+                <option value="payments">من المدفوعات</option>
                 <option value="external">خارجي</option>
               </select>
             </div>
 
+            <!-- اختيار العميل عند المصدر = payments -->
             <div class="form-group" id="customerGroup" style="display:none;">
-              <label for="txCustomer" class="form-label">اختر العميل</label>
+              <label for="txCustomer" class="form-label">اختر العميل (اختياري)</label>
               <select class="form-select" id="txCustomer">
                 <option value="">اختر عميل...</option>
               </select>
             </div>
 
+            <!-- الوجهة (للسحب فقط) -->
             <div class="form-group" id="targetGroup" style="display:none;">
               <label for="txTarget" class="form-label">الجهة المستلمة</label>
               <select class="form-select" id="txTarget">
@@ -324,20 +336,26 @@
               </select>
             </div>
 
+            <!-- المبلغ -->
             <div class="form-group">
               <label for="txAmount" class="form-label">المبلغ ($) <span class="text-danger">*</span></label>
               <input type="number" class="form-control" id="txAmount" step="0.01" required />
             </div>
 
+            <!-- التاريخ -->
             <div class="form-group">
               <label for="txDate" class="form-label">التاريخ</label>
               <input type="text" class="form-control" id="txDate" />
             </div>
 
+            <!-- ملاحظات -->
             <div class="form-group">
               <label for="txNote" class="form-label">ملاحظات</label>
               <textarea class="form-control" id="txNote" rows="2"></textarea>
             </div>
+
+            <!-- رسالة الخطأ -->
+            <div id="txError" class="text-danger small" style="display:none;"></div>
           </form>
         </div>
         <div class="modal-footer">
