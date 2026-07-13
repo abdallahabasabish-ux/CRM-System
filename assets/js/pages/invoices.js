@@ -27,7 +27,7 @@ let mergeModalInstance = null;
 let currentInvoiceId = null;
 
 // ============================
-// 1. دوال مساعدة
+// 1. دوال مساعدة (Toast, Escape, Format)
 // ============================
 function showToast(message, type = 'success') {
   const colors = {
@@ -61,7 +61,7 @@ function formatDate(date) {
 }
 
 // ============================
-// 2. جلب إعدادات الشركة
+// 2. جلب إعدادات الشركة والبيانات
 // ============================
 async function loadSettings() {
   try {
@@ -77,9 +77,6 @@ async function loadSettings() {
   }
 }
 
-// ============================
-// 3. جلب العملاء والطلبات للمساعدة
-// ============================
 async function loadCustomersAndOrders() {
   try {
     const customersSnap = await getDocs(collection(db, 'customers'));
@@ -93,7 +90,7 @@ async function loadCustomersAndOrders() {
 }
 
 // ============================
-// 4. قراءة الفواتير (Realtime)
+// 3. قراءة الفواتير (Realtime)
 // ============================
 function listenToInvoices() {
   const invoicesRef = collection(db, 'invoices');
@@ -128,7 +125,7 @@ function listenToInvoices() {
 }
 
 // ============================
-// 5. عرض الجدول
+// 4. عرض الجدول (مع استخدام data-attributes للأزرار)
 // ============================
 function renderTable(data) {
   const tbody = document.getElementById('invoicesTableBody');
@@ -154,10 +151,10 @@ function renderTable(data) {
         <td><span class="${statusBadge}">${escapeHtml(inv.status || 'غير مدفوعة')}</span></td>
         <td>${formatDate(inv.createdAt)}</td>
         <td>
-          <button class="btn btn-sm btn-outline-primary view-btn" data-id="${inv.id}" title="عرض">
+          <button class="btn btn-sm btn-outline-primary action-btn" data-action="view" data-id="${inv.id}" title="عرض">
             <i class="fas fa-eye"></i>
           </button>
-          <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${inv.id}" title="حذف">
+          <button class="btn btn-sm btn-outline-danger action-btn" data-action="delete" data-id="${inv.id}" title="حذف">
             <i class="fas fa-trash"></i>
           </button>
         </td>
@@ -167,26 +164,15 @@ function renderTable(data) {
 
   tbody.innerHTML = html;
 
-  // ربط الأحداث
-  tbody.querySelectorAll('.view-btn').forEach(btn => {
-    btn.addEventListener('click', () => viewInvoice(btn.dataset.id));
-  });
-  tbody.querySelectorAll('.delete-btn').forEach(btn => {
-    btn.addEventListener('click', () => confirmDelete(btn.dataset.id));
-  });
-
-  // تحديد الكل
-  const selectAll = document.getElementById('selectAllInvoices');
-  if (selectAll) {
-    selectAll.checked = false;
-    selectAll.addEventListener('change', function() {
-      document.querySelectorAll('.invoice-checkbox').forEach(cb => cb.checked = this.checked);
-    });
-  }
+  // ========================================
+  // استخدام Event Delegation لجميع الأزرار داخل الجدول
+  // ========================================
+  // نربط حدث واحد على tbody بدلاً من كل زر على حدة
+  // سنقوم بذلك في دالة init بعد التأكد من وجود tbody
 }
 
 // ============================
-// 6. البحث
+// 5. البحث
 // ============================
 function filterInvoices(term) {
   return invoices.filter(inv => {
@@ -197,33 +183,44 @@ function filterInvoices(term) {
   });
 }
 
-document.getElementById('searchInput')?.addEventListener('input', (e) => {
-  const term = e.target.value.trim().toLowerCase();
-  const filtered = term ? filterInvoices(term) : invoices;
-  renderTable(filtered);
-  document.getElementById('resultCount').textContent = `عرض ${filtered.length} فاتورة`;
-});
+// ============================
+// 6. معالج الأحداث العام للأزرار (Event Delegation)
+// ============================
+function setupActionHandlers() {
+  const tbody = document.getElementById('invoicesTableBody');
+  if (!tbody) return;
+
+  // إزالة المستمع القديم لتجنب التكرار
+  tbody.removeEventListener('click', handleTableClick);
+  tbody.addEventListener('click', handleTableClick);
+}
+
+function handleTableClick(e) {
+  const btn = e.target.closest('.action-btn');
+  if (!btn) return;
+
+  const action = btn.dataset.action;
+  const id = btn.dataset.id;
+
+  if (!action || !id) return;
+
+  e.preventDefault();
+
+  switch (action) {
+    case 'view':
+      viewInvoice(id);
+      break;
+    case 'delete':
+      confirmDelete(id);
+      break;
+    default:
+      console.warn('Unknown action:', action);
+  }
+}
 
 // ============================
 // 7. إنشاء فاتورة جديدة (من طلب)
 // ============================
-document.getElementById('createInvoiceBtn')?.addEventListener('click', async () => {
-  // نطلب من المستخدم اختيار طلب لإنشاء فاتورة منه
-  const { value: orderId } = await Swal.fire({
-    title: 'اختر الطلب',
-    input: 'select',
-    inputOptions: await getOrdersOptions(),
-    inputPlaceholder: 'اختر طلب...',
-    showCancelButton: true,
-    confirmButtonText: 'إنشاء فاتورة',
-    cancelButtonText: 'إلغاء'
-  });
-
-  if (orderId) {
-    await createInvoiceFromOrder(orderId);
-  }
-});
-
 async function getOrdersOptions() {
   const ordersSnap = await getDocs(collection(db, 'orders'));
   const ordersList = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -237,6 +234,10 @@ async function getOrdersOptions() {
 }
 
 async function createInvoiceFromOrder(orderId) {
+  const saveBtn = document.getElementById('createInvoiceBtn');
+  saveBtn.disabled = true;
+  saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري...';
+
   try {
     const orderDoc = await getDoc(doc(db, 'orders', orderId));
     if (!orderDoc.exists()) {
@@ -245,7 +246,6 @@ async function createInvoiceFromOrder(orderId) {
     }
     const orderData = orderDoc.data();
 
-    // إنشاء رقم فاتورة تلقائي
     const now = new Date();
     const dateStr = now.toISOString().slice(0,10).replace(/-/g,'');
     const count = invoices.length + 1;
@@ -272,8 +272,27 @@ async function createInvoiceFromOrder(orderId) {
   } catch (error) {
     console.error('Error creating invoice:', error);
     showToast('حدث خطأ أثناء إنشاء الفاتورة', 'error');
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.innerHTML = '<i class="fas fa-plus me-2"></i>فاتورة جديدة';
   }
 }
+
+document.getElementById('createInvoiceBtn')?.addEventListener('click', async () => {
+  const { value: orderId } = await Swal.fire({
+    title: 'اختر الطلب',
+    input: 'select',
+    inputOptions: await getOrdersOptions(),
+    inputPlaceholder: 'اختر طلب...',
+    showCancelButton: true,
+    confirmButtonText: 'إنشاء فاتورة',
+    cancelButtonText: 'إلغاء'
+  });
+
+  if (orderId) {
+    await createInvoiceFromOrder(orderId);
+  }
+});
 
 // ============================
 // 8. عرض الفاتورة مع الشعار واسم الشركة
@@ -291,7 +310,6 @@ async function viewInvoice(id) {
   const customerPhone = customer ? customer.phone : '';
   const customerAddress = customer ? customer.address : '';
 
-  // بناء HTML للفاتورة مع الشعار واسم الشركة
   const logoHtml = settings.companyLogo 
     ? `<img src="${settings.companyLogo}" alt="شعار الشركة" style="max-height:60px;max-width:150px;object-fit:contain;" />`
     : `<div style="font-size:24px;font-weight:bold;color:#0a1a2f;">${settings.companyName || 'شركتي'}</div>`;
@@ -368,7 +386,11 @@ async function viewInvoice(id) {
 // 9. طباعة، تحميل PDF، مشاركة واتساب
 // ============================
 document.getElementById('printInvoiceBtn')?.addEventListener('click', () => {
-  const printContents = document.getElementById('invoice-print-area').innerHTML;
+  const printContents = document.getElementById('invoice-print-area')?.innerHTML;
+  if (!printContents) {
+    showToast('لا توجد فاتورة للطباعة', 'warning');
+    return;
+  }
   const win = window.open('', '_blank');
   win.document.write(`
     <html><head><title>فاتورة</title>
@@ -439,21 +461,19 @@ async function confirmDelete(id) {
 }
 
 // ============================
-// 11. دمج الفواتير (الميزة الجديدة)
+// 11. دمج الفواتير
 // ============================
 document.getElementById('mergeInvoicesBtn')?.addEventListener('click', () => {
   openMergeModal();
 });
 
 async function openMergeModal() {
-  // عرض جميع الفواتير غير المدفوعة بالكامل أو حسب الرغبة
   const mergeInvoices = invoices.filter(inv => inv.balance > 0);
   if (mergeInvoices.length < 2) {
     showToast('تحتاج إلى فاتورتين على الأقل للدمج', 'warning');
     return;
   }
 
-  // تعبئة الجدول
   const tbody = document.getElementById('mergeInvoicesBody');
   tbody.innerHTML = '';
   mergeInvoices.forEach(inv => {
@@ -470,13 +490,11 @@ async function openMergeModal() {
     tbody.appendChild(tr);
   });
 
-  // إعادة تعيين تحديد الكل
   document.getElementById('selectAllMerge').checked = false;
   document.getElementById('selectAllMerge').addEventListener('change', function() {
     document.querySelectorAll('.merge-checkbox').forEach(cb => cb.checked = this.checked);
   });
 
-  // تحديث المعلومات
   document.getElementById('mergeInfo').textContent = 'اختر فواتير لنفس العميل لدمجها في فاتورة واحدة.';
 
   if (mergeModalInstance) mergeModalInstance.show();
@@ -492,7 +510,6 @@ document.getElementById('confirmMergeBtn')?.addEventListener('click', async () =
   const selectedIds = Array.from(selected).map(cb => cb.dataset.id);
   const selectedInvoices = invoices.filter(inv => selectedIds.includes(inv.id));
 
-  // التحقق من أن جميع الفواتير لنفس العميل
   const customerId = selectedInvoices[0].customerId;
   const sameCustomer = selectedInvoices.every(inv => inv.customerId === customerId);
   if (!sameCustomer) {
@@ -500,12 +517,10 @@ document.getElementById('confirmMergeBtn')?.addEventListener('click', async () =
     return;
   }
 
-  // حساب الإجماليات
   const totalSum = selectedInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
   const paidSum = selectedInvoices.reduce((sum, inv) => sum + (inv.paid || 0), 0);
   const balanceSum = totalSum - paidSum;
 
-  // إنشاء فاتورة جديدة مجمعة
   const now = new Date();
   const dateStr = now.toISOString().slice(0,10).replace(/-/g,'');
   const count = invoices.length + 1;
@@ -527,6 +542,10 @@ document.getElementById('confirmMergeBtn')?.addEventListener('click', async () =
     updatedAt: new Date().toISOString()
   };
 
+  const confirmBtn = document.getElementById('confirmMergeBtn');
+  confirmBtn.disabled = true;
+  confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الدمج...';
+
   try {
     await addDoc(collection(db, 'invoices'), mergedInvoiceData);
     showToast('تم دمج الفواتير بنجاح', 'success');
@@ -534,11 +553,14 @@ document.getElementById('confirmMergeBtn')?.addEventListener('click', async () =
   } catch (error) {
     console.error('Error merging invoices:', error);
     showToast('حدث خطأ أثناء دمج الفواتير', 'error');
+  } finally {
+    confirmBtn.disabled = false;
+    confirmBtn.innerHTML = '<i class="fas fa-object-group me-2"></i>دمج الفواتير المختارة';
   }
 });
 
 // ============================
-// 12. تهيئة الوضع المظلم والـ Sidebar
+// 12. تهيئة الوضع المظلم و Sidebar
 // ============================
 function initDarkMode() {
   const themeToggle = document.getElementById('themeToggle');
@@ -592,7 +614,6 @@ function initSidebar() {
 async function init() {
   console.log('🚀 Initializing Invoices page...');
 
-  // المصادقة
   onAuthStateChangedCallback(async (user) => {
     if (!user) {
       window.location.href = '../login.html';
@@ -610,9 +631,11 @@ async function init() {
     await loadSettings();
     await loadCustomersAndOrders();
     listenToInvoices();
+
+    // بعد تحميل البيانات، نضبط معالج الأحداث للأزرار (مرة واحدة فقط)
+    setupActionHandlers();
   });
 
-  // تسجيل الخروج
   document.getElementById('logoutBtn')?.addEventListener('click', async () => {
     await logoutUser();
     window.location.href = '../login.html';
