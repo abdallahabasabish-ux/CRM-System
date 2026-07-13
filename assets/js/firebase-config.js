@@ -1,19 +1,32 @@
-// استبدل هذه القيم بالبيانات من Firebase Console
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
+
+// Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyDSAf_nl-72K0VsyvCkNvLLn5qzHw-ZRMI",
+  authDomain: "crm-system-2ee41.firebaseapp.com",
+  projectId: "crm-system-2ee41",
+  storageBucket: "crm-system-2ee41.firebasestorage.app",
+  messagingSenderId: "190840060045",
+  appId: "1:190840060045:web:4b151ba2201b63f9754ac4"
 };
 
-// تهيئة Firebase
-firebase.initializeApp(firebaseConfig);
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
 
-// جاهزية المصادقة و Firestore
-const auth = firebase.auth();
-const db = firebase.firestore();
+// Initialize services
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
 
-// تفعيل استخدام المصادقة المستمرة
-auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+// Set persistence to LOCAL (keep user logged in)
+setPersistence(auth, browserLocalPersistence)
+  .catch((error) => {
+    console.warn("Error setting persistence:", error);
+  });
+
+// Export for use in other modules
+export { auth, db, storage, app };
