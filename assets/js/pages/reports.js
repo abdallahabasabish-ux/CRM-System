@@ -1,5 +1,5 @@
 // =============================================================
-// reports.js - الإصدار النهائي مع حسابات ديناميكية ودعم الخزينة
+// reports.js - إصدار احترافي مع دعم الخزينة وتحسينات UI
 // =============================================================
 import { onAuthStateChangedCallback, logoutUser } from '../auth.js';
 import { db } from '../firebase-config.js';
@@ -7,13 +7,13 @@ import {
   collection,
   getDocs,
   query,
-  where,
   orderBy,
+  where,
   Timestamp
 } from 'firebase/firestore';
 
 // =============================================================
-// 1.  المتغيرات العامة وإدارة الحالة
+// 1.  المتغيرات العامة
 // =============================================================
 const state = {
   orders: [],
@@ -26,7 +26,11 @@ const state = {
   dateFrom: null,
   dateTo: null,
   charts: {},
-  filtered: { orders: [], payments: [], treasury: [] }
+  filtered: {
+    orders: [],
+    payments: [],
+    treasury: []
+  }
 };
 
 // =============================================================
@@ -74,7 +78,7 @@ function showToast(message, type = 'success') {
 }
 
 // =============================================================
-// 3.  تحميل البيانات الأساسية
+// 3.  تحميل البيانات (مع الخزينة)
 // =============================================================
 async function fetchAllData() {
   try {
@@ -89,37 +93,12 @@ async function fetchAllData() {
       getDocs(collection(db, 'treasury'))
     ]);
 
-    state.orders = ordersSnap.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
-        deadline: data.deadline instanceof Timestamp ? data.deadline.toDate() : data.deadline
-      };
-    });
-
+    state.orders = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt }));
     state.customers = customersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     state.employees = employeesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     state.services = servicesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-    state.payments = paymentsSnap.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        paymentDate: data.paymentDate instanceof Timestamp ? data.paymentDate.toDate() : data.paymentDate
-      };
-    });
-
-    state.treasury = treasurySnap.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        ...data,
-        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
-      };
-    });
+    state.payments = paymentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), paymentDate: doc.data().paymentDate?.toDate?.() || doc.data().paymentDate }));
+    state.treasury = treasurySnap.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt }));
 
     showToast('تم تحميل البيانات بنجاح', 'success');
     return true;
@@ -131,7 +110,7 @@ async function fetchAllData() {
 }
 
 // =============================================================
-// 4.  منطق الفلترة الزمنية
+// 4.  الفلترة الزمنية (مشتركة)
 // =============================================================
 function getDateRange() {
   const now = new Date();
@@ -178,13 +157,13 @@ function applyAllFilters() {
 }
 
 // =============================================================
-// 5.  تحديث واجهة المستخدم
+// 5.  تحديث واجهة المستخدم (UI)
 // =============================================================
 function updateUI() {
   const { orders, payments, treasury } = state.filtered;
   updateStatsCards(orders, payments, treasury);
   destroyCharts();
-  createCharts(orders, payments);
+  createCharts(orders, payments, treasury);
   updateOrdersReport(orders);
   updateCustomersReport();
   updateEmployeesReport();
@@ -193,36 +172,29 @@ function updateUI() {
 }
 
 // =============================================================
-// 6.  البطاقات الإحصائية
+// 6.  بطاقات الإحصائيات (مع الخزينة)
 // =============================================================
 function updateStatsCards(orders, payments, treasury) {
   const totalCustomers = state.customers.length;
   const totalOrders = orders.length;
   const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
   const totalPayments = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
-  const totalTreasury = treasury.reduce((sum, t) => {
-    if (t.type === 'deposit') return sum + (t.amount || 0);
-    if (t.type === 'withdraw') return sum - (t.amount || 0);
-    if (t.type === 'transfer') return sum + (t.amount || 0);
-    return sum;
-  }, 0);
 
   document.getElementById('statCustomers').textContent = totalCustomers;
   document.getElementById('statOrders').textContent = totalOrders;
   document.getElementById('statRevenue').textContent = formatCurrency(totalRevenue);
   document.getElementById('statPayments').textContent = formatCurrency(totalPayments);
-  document.getElementById('statTreasury').textContent = formatCurrency(totalTreasury);
 }
 
 // =============================================================
-// 7.  الرسوم البيانية
+// 7.  الرسوم البيانية (مع تحديث)
 // =============================================================
 function destroyCharts() {
   Object.values(state.charts).forEach(chart => chart?.destroy());
   state.charts = {};
 }
 
-function createCharts(orders, payments) {
+function createCharts(orders, payments, treasury) {
   Chart.defaults.font.family = 'Almarai, sans-serif';
   const colors = ['#ff6600', '#0d6efd', '#28a745', '#8b5cf6', '#ffc107', '#dc3545'];
 
@@ -231,7 +203,7 @@ function createCharts(orders, payments) {
   orders.forEach(o => { statusMap[o.status || 'غير معروف'] = (statusMap[o.status || 'غير معروف'] || 0) + 1; });
   const statusLabels = Object.keys(statusMap);
   const statusData = Object.values(statusMap);
-  const ctx1 = document.getElementById('ordersStatusChart')?.getContext('2d');
+  const ctx1 = document.getElementById('ordersStatusChart');
   if (ctx1) {
     state.charts.status = new Chart(ctx1, {
       type: 'doughnut',
@@ -268,7 +240,7 @@ function createCharts(orders, payments) {
   });
   const revenueLabels = Object.keys(monthlyRevenue);
   const revenueData = Object.values(monthlyRevenue);
-  const ctx2 = document.getElementById('monthlyRevenueChart')?.getContext('2d');
+  const ctx2 = document.getElementById('monthlyRevenueChart');
   if (ctx2) {
     state.charts.revenue = new Chart(ctx2, {
       type: 'bar',
@@ -277,7 +249,7 @@ function createCharts(orders, payments) {
         datasets: [{
           label: 'الإيرادات ($)',
           data: revenueData,
-          backgroundColor: 'rgba(255, 102, 0, 0.7)',
+          backgroundColor: 'rgba(255,102,0,0.7)',
           borderRadius: 6
         }]
       },
@@ -292,17 +264,17 @@ function createCharts(orders, payments) {
     });
   }
 
-  // 7.3 الخدمات الأكثر طلبًا
+  // 7.3 الخدمات الأكثر طلباً
   const serviceCount = {};
   orders.forEach(o => {
-    const service = state.services.find(s => s.id === o.serviceId);
-    const name = service ? service.name : 'غير معروف';
+    const svc = state.services.find(s => s.id === o.serviceId);
+    const name = svc ? svc.name : 'غير معروف';
     serviceCount[name] = (serviceCount[name] || 0) + 1;
   });
-  const sortedServices = Object.entries(serviceCount).sort((a, b) => b[1] - a[1]).slice(0, 6);
-  const svcLabels = sortedServices.map(s => s[0]);
-  const svcData = sortedServices.map(s => s[1]);
-  const ctx3 = document.getElementById('topServicesChart')?.getContext('2d');
+  const sorted = Object.entries(serviceCount).sort((a,b) => b[1]-a[1]).slice(0,6);
+  const svcLabels = sorted.map(s => s[0]);
+  const svcData = sorted.map(s => s[1]);
+  const ctx3 = document.getElementById('topServicesChart');
   if (ctx3) {
     state.charts.services = new Chart(ctx3, {
       type: 'pie',
@@ -310,7 +282,7 @@ function createCharts(orders, payments) {
         labels: svcLabels.length ? svcLabels : ['لا توجد طلبات'],
         datasets: [{
           data: svcLabels.length ? svcData : [1],
-          backgroundColor: ['#ff6600', '#0d6efd', '#28a745', '#8b5cf6', '#ffc107', '#dc3545'],
+          backgroundColor: ['#ff6600','#0d6efd','#28a745','#8b5cf6','#ffc107','#dc3545'],
           borderWidth: 0
         }]
       },
@@ -322,17 +294,11 @@ function createCharts(orders, payments) {
   }
 
   // 7.4 أداء الموظفين
-  const employeeOrders = {};
-  orders.forEach(o => {
-    if (o.employeeId) {
-      employeeOrders[o.employeeId] = (employeeOrders[o.employeeId] || 0) + 1;
-    }
-  });
-  const empData = state.employees.map(e => ({
-    name: e.name || 'غير معروف',
-    count: employeeOrders[e.id] || 0
-  })).sort((a, b) => b.count - a.count).slice(0, 8);
-  const ctx4 = document.getElementById('employeePerformanceChart')?.getContext('2d');
+  const empOrders = {};
+  orders.forEach(o => { if (o.employeeId) empOrders[o.employeeId] = (empOrders[o.employeeId] || 0) + 1; });
+  const empData = state.employees.map(e => ({ name: e.name || 'غير معروف', count: empOrders[e.id] || 0 }))
+    .sort((a,b) => b.count - a.count).slice(0,8);
+  const ctx4 = document.getElementById('employeePerformanceChart');
   if (ctx4) {
     state.charts.employees = new Chart(ctx4, {
       type: 'bar',
@@ -341,7 +307,7 @@ function createCharts(orders, payments) {
         datasets: [{
           label: 'عدد الطلبات',
           data: empData.map(e => e.count),
-          backgroundColor: 'rgba(13, 110, 253, 0.7)',
+          backgroundColor: 'rgba(13,110,253,0.7)',
           borderRadius: 6
         }]
       },
@@ -358,10 +324,8 @@ function createCharts(orders, payments) {
 }
 
 // =============================================================
-// 8.  التقارير الجدولية
+// 8.  تقارير الجداول (مع إضافة الخزينة)
 // =============================================================
-
-// 8.1 تقرير الطلبات
 function updateOrdersReport(orders) {
   const tbody = document.getElementById('ordersReportBody');
   if (!tbody) return;
@@ -370,9 +334,7 @@ function updateOrdersReport(orders) {
     tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">لا توجد طلبات</td></tr>`;
     return;
   }
-
-  let html = '';
-  let totalSum = 0, paidSum = 0, remainingSum = 0;
+  let html = '', totalSum=0, paidSum=0, remainingSum=0;
   data.forEach(o => {
     const customer = state.customers.find(c => c.id === o.customerId);
     const service = state.services.find(s => s.id === o.serviceId);
@@ -380,31 +342,20 @@ function updateOrdersReport(orders) {
     const paid = o.paid || 0;
     const remaining = total - paid;
     totalSum += total; paidSum += paid; remainingSum += remaining;
-
-    html += `
-      <tr>
-        <td><strong>#${o.orderNumber || 'N/A'}</strong></td>
-        <td>${customer ? escapeHtml(customer.name) : 'غير معروف'}</td>
-        <td>${service ? escapeHtml(service.name) : 'غير معروف'}</td>
-        <td><span class="badge bg-${o.status === 'مكتمل' ? 'success' : o.status === 'ملغي' ? 'danger' : 'warning'}">${escapeHtml(o.status || 'جديد')}</span></td>
-        <td>${formatCurrency(total)}</td>
-        <td>${formatCurrency(paid)}</td>
-        <td>${formatCurrency(remaining)}</td>
-      </tr>
-    `;
+    html += `<tr>
+      <td><strong>#${o.orderNumber || 'N/A'}</strong></td>
+      <td>${customer ? escapeHtml(customer.name) : 'غير معروف'}</td>
+      <td>${service ? escapeHtml(service.name) : 'غير معروف'}</td>
+      <td><span class="badge-status badge bg-${o.status === 'مكتمل' ? 'success' : o.status === 'ملغي' ? 'danger' : 'warning'}">${escapeHtml(o.status || 'جديد')}</span></td>
+      <td>${formatCurrency(total)}</td>
+      <td>${formatCurrency(paid)}</td>
+      <td>${formatCurrency(remaining)}</td>
+    </tr>`;
   });
-  html += `
-    <tr class="report-total-row">
-      <td colspan="4" style="text-align:center;">الإجمالي</td>
-      <td>${formatCurrency(totalSum)}</td>
-      <td>${formatCurrency(paidSum)}</td>
-      <td>${formatCurrency(remainingSum)}</td>
-    </tr>
-  `;
+  html += `<tr class="report-total-row"><td colspan="4" style="text-align:center;">الإجمالي</td><td>${formatCurrency(totalSum)}</td><td>${formatCurrency(paidSum)}</td><td>${formatCurrency(remainingSum)}</td></tr>`;
   tbody.innerHTML = html;
 }
 
-// 8.2 تقرير العملاء (محسوب ديناميكياً)
 function updateCustomersReport() {
   const tbody = document.getElementById('customersReportBody');
   if (!tbody) return;
@@ -412,43 +363,26 @@ function updateCustomersReport() {
     tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">لا يوجد عملاء</td></tr>`;
     return;
   }
-
-  let html = '';
-  let totalPaidSum = 0;
-  let totalBalanceSum = 0;
-
+  let html = '', totalPaidSum=0, totalBalanceSum=0;
   state.customers.forEach(c => {
-    const customerOrders = state.orders.filter(o => o.customerId === c.id);
-    const ordersCount = customerOrders.length;
-    const totalOrdersValue = customerOrders.reduce((sum, o) => sum + (o.total || 0), 0);
-    const customerPayments = state.payments.filter(p => p.customerId === c.id);
-    const totalPaid = customerPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const ordersCount = state.orders.filter(o => o.customerId === c.id).length;
+    const totalOrdersValue = state.orders.filter(o => o.customerId === c.id).reduce((s,o) => s + (o.total || 0), 0);
+    const totalPaid = state.payments.filter(p => p.customerId === c.id).reduce((s,p) => s + (p.amount || 0), 0);
     const balance = totalOrdersValue - totalPaid;
-
     totalPaidSum += totalPaid;
     totalBalanceSum += balance;
-
-    html += `
-      <tr>
-        <td>${escapeHtml(c.name || '')}</td>
-        <td>${escapeHtml(c.phone || '')}</td>
-        <td>${ordersCount}</td>
-        <td>${formatCurrency(totalPaid)}</td>
-        <td>${formatCurrency(balance)}</td>
-      </tr>
-    `;
+    html += `<tr>
+      <td>${escapeHtml(c.name || '')}</td>
+      <td>${escapeHtml(c.phone || '')}</td>
+      <td>${ordersCount}</td>
+      <td>${formatCurrency(totalPaid)}</td>
+      <td>${formatCurrency(balance)}</td>
+    </tr>`;
   });
-  html += `
-    <tr class="report-total-row">
-      <td colspan="3" style="text-align:center;">الإجمالي</td>
-      <td>${formatCurrency(totalPaidSum)}</td>
-      <td>${formatCurrency(totalBalanceSum)}</td>
-    </tr>
-  `;
+  html += `<tr class="report-total-row"><td colspan="3" style="text-align:center;">الإجمالي</td><td>${formatCurrency(totalPaidSum)}</td><td>${formatCurrency(totalBalanceSum)}</td></tr>`;
   tbody.innerHTML = html;
 }
 
-// 8.3 تقرير الموظفين
 function updateEmployeesReport() {
   const tbody = document.getElementById('employeesReportBody');
   if (!tbody) return;
@@ -456,121 +390,77 @@ function updateEmployeesReport() {
     tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">لا يوجد موظفين</td></tr>`;
     return;
   }
-  let html = '';
-  let totalCommissionSum = 0;
+  let html = '', totalCommissionSum = 0;
   state.employees.forEach(e => {
     const empOrders = state.orders.filter(o => o.employeeId === e.id);
     const completed = empOrders.filter(o => o.status === 'مكتمل').length;
     const rate = empOrders.length > 0 ? Math.round((completed / empOrders.length) * 100) : 0;
-    const commission = empOrders.reduce((sum, o) => sum + ((o.total || 0) * (e.commission || 0) / 100), 0);
+    const commission = empOrders.reduce((s,o) => s + ((o.total || 0) * (e.commission || 0) / 100), 0);
     totalCommissionSum += commission;
-    html += `
-      <tr>
-        <td>${escapeHtml(e.name || '')}</td>
-        <td>${escapeHtml(e.position || '')}</td>
-        <td>${empOrders.length}</td>
-        <td>${rate}%</td>
-        <td>${formatCurrency(commission)}</td>
-      </tr>
-    `;
+    html += `<tr>
+      <td>${escapeHtml(e.name || '')}</td>
+      <td>${escapeHtml(e.position || '')}</td>
+      <td>${empOrders.length}</td>
+      <td>${rate}%</td>
+      <td>${formatCurrency(commission)}</td>
+    </tr>`;
   });
-  html += `
-    <tr class="report-total-row">
-      <td colspan="4" style="text-align:center;">الإجمالي</td>
-      <td>${formatCurrency(totalCommissionSum)}</td>
-    </tr>
-  `;
+  html += `<tr class="report-total-row"><td colspan="4" style="text-align:center;">الإجمالي</td><td>${formatCurrency(totalCommissionSum)}</td></tr>`;
   tbody.innerHTML = html;
 }
 
-// 8.4 تقرير المدفوعات
 function updatePaymentsReport(payments) {
   const tbody = document.getElementById('paymentsReportBody');
   if (!tbody) return;
-  const data = payments.slice(0, 100);
+  const data = payments.slice(0,100);
   if (data.length === 0) {
     tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">لا توجد مدفوعات</td></tr>`;
     return;
   }
-  let html = '';
-  let amountSum = 0;
+  let html = '', amountSum=0;
   data.forEach(p => {
-    let customerName = p.customerName || 'غير معروف';
-    if (!p.customerName) {
-      const customer = state.customers.find(c => c.id === p.customerId);
-      customerName = customer ? customer.name : 'غير معروف';
-    }
+    const customer = state.customers.find(c => c.id === p.customerId);
+    const customerName = customer ? customer.name : (p.customerName || 'غير معروف');
     amountSum += p.amount || 0;
-    html += `
-      <tr>
-        <td>${escapeHtml(customerName)}</td>
-        <td>${formatCurrency(p.amount || 0)}</td>
-        <td>${escapeHtml(p.method || '')}</td>
-        <td>${formatDate(p.paymentDate)}</td>
-      </tr>
-    `;
+    html += `<tr>
+      <td>${escapeHtml(customerName)}</td>
+      <td>${formatCurrency(p.amount || 0)}</td>
+      <td>${escapeHtml(p.method || '')}</td>
+      <td>${formatDate(p.paymentDate)}</td>
+    </tr>`;
   });
-  html += `
-    <tr class="report-total-row">
-      <td style="text-align:center;">الإجمالي</td>
-      <td>${formatCurrency(amountSum)}</td>
-      <td colspan="2"></td>
-    </tr>
-  `;
+  html += `<tr class="report-total-row"><td style="text-align:center;">الإجمالي</td><td>${formatCurrency(amountSum)}</td><td colspan="2"></td></tr>`;
   tbody.innerHTML = html;
 }
 
-// 8.5 تقرير الخزينة
 function updateTreasuryReport(treasury) {
   const tbody = document.getElementById('treasuryReportBody');
   if (!tbody) return;
-  const data = treasury.slice(0, 100);
+  const data = treasury.slice(0,100);
   if (data.length === 0) {
     tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">لا توجد معاملات خزينة</td></tr>`;
     return;
   }
-
-  let html = '';
-  let totalDeposits = 0, totalWithdrawals = 0, totalTransfers = 0;
-
+  let html = '', totalDeposits=0, totalWithdrawals=0, totalTransfers=0;
   data.forEach(tx => {
-    const typeMap = {
-      deposit: 'إيداع',
-      withdraw: 'سحب',
-      transfer: 'تحويل'
-    };
+    const typeMap = { deposit: 'إيداع', withdraw: 'سحب', transfer: 'تحويل' };
     const typeLabel = typeMap[tx.type] || tx.type;
     const amount = tx.amount || 0;
     const sign = tx.type === 'withdraw' ? '-' : '+';
     const color = tx.type === 'withdraw' ? 'text-danger' : 'text-success';
-    const badgeColor = tx.type === 'deposit' ? 'success' : tx.type === 'withdraw' ? 'danger' : 'warning';
-
     if (tx.type === 'deposit') totalDeposits += amount;
     else if (tx.type === 'withdraw') totalWithdrawals += amount;
     else if (tx.type === 'transfer') totalTransfers += amount;
-
-    html += `
-      <tr>
-        <td>${formatDate(tx.createdAt)}</td>
-        <td><span class="badge bg-${badgeColor}">${typeLabel}</span></td>
-        <td class="${color}">${sign}${formatCurrency(amount)}</td>
-        <td>${escapeHtml(tx.source || tx.target || '-')}</td>
-        <td>${escapeHtml(tx.note || '')}</td>
-      </tr>
-    `;
+    html += `<tr>
+      <td>${formatDate(tx.createdAt)}</td>
+      <td><span class="badge-status badge bg-${tx.type === 'deposit' ? 'success' : tx.type === 'withdraw' ? 'danger' : 'warning'}">${typeLabel}</span></td>
+      <td class="${color}">${sign}${formatCurrency(amount)}</td>
+      <td>${escapeHtml(tx.source || tx.target || '-')}</td>
+      <td>${escapeHtml(tx.note || '')}</td>
+    </tr>`;
   });
-
-  // صف الإجمالي
   const balance = totalDeposits - totalWithdrawals + totalTransfers;
-  html += `
-    <tr class="report-total-row">
-      <td colspan="2" style="text-align:center;">الإجمالي</td>
-      <td>الإيداعات: ${formatCurrency(totalDeposits)}</td>
-      <td>السحوبات: ${formatCurrency(totalWithdrawals)}</td>
-      <td>الرصيد: ${formatCurrency(balance)}</td>
-    </tr>
-  `;
-
+  html += `<tr class="report-total-row"><td colspan="2" style="text-align:center;">الإجمالي</td><td>الإيداعات: ${formatCurrency(totalDeposits)}</td><td>السحوبات: ${formatCurrency(totalWithdrawals)}</td><td>الرصيد: ${formatCurrency(balance)}</td></tr>`;
   tbody.innerHTML = html;
 }
 
@@ -633,7 +523,7 @@ function printReport() {
 }
 
 // =============================================================
-// 10. أحداث الفلاتر والأزرار
+// 10.  أحداث الفلاتر والأزرار
 // =============================================================
 function setupEventListeners() {
   document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -668,63 +558,13 @@ function setupEventListeners() {
 }
 
 // =============================================================
-// 11. تهيئة الوضع المظلم والقائمة الجانبية
-// =============================================================
-function initDarkMode() {
-  const themeToggle = document.getElementById('themeToggle');
-  const htmlElement = document.documentElement;
-  const savedTheme = localStorage.getItem('theme') || 'light';
-  if (savedTheme === 'dark') {
-    htmlElement.setAttribute('data-theme', 'dark');
-    if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
-  } else {
-    htmlElement.removeAttribute('data-theme');
-    if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
-  }
-  if (themeToggle) {
-    themeToggle.addEventListener('click', function() {
-      const currentTheme = htmlElement.getAttribute('data-theme');
-      if (currentTheme === 'dark') {
-        htmlElement.removeAttribute('data-theme');
-        localStorage.setItem('theme', 'light');
-        this.innerHTML = '<i class="fas fa-moon"></i>';
-        applyAllFilters();
-      } else {
-        htmlElement.setAttribute('data-theme', 'dark');
-        localStorage.setItem('theme', 'dark');
-        this.innerHTML = '<i class="fas fa-sun"></i>';
-        applyAllFilters();
-      }
-    });
-  }
-}
-
-function initSidebar() {
-  const sidebarToggle = document.getElementById('sidebarToggle');
-  const sidebar = document.getElementById('sidebar');
-  const overlay = document.getElementById('sidebar-overlay');
-  if (sidebarToggle && sidebar) {
-    sidebarToggle.addEventListener('click', () => {
-      sidebar.classList.toggle('active');
-      if (overlay) overlay.classList.toggle('active');
-    });
-  }
-  if (overlay) {
-    overlay.addEventListener('click', () => {
-      sidebar.classList.remove('active');
-      overlay.classList.remove('active');
-    });
-  }
-}
-
-// =============================================================
-// 12. التهيئة العامة
+// 11.  التهيئة العامة
 // =============================================================
 async function init() {
   console.log('🚀 Initializing Reports page...');
   onAuthStateChangedCallback(async (user) => {
     if (!user) { window.location.href = '../login.html'; return; }
-    // تحديث بيانات المستخدم
+    // تحديث بيانات المستخدم في الـ Sidebar
     const sidebarUserName = document.getElementById('sidebarUserName');
     const sidebarUserEmail = document.getElementById('sidebarUserEmail');
     const sidebarAvatar = document.getElementById('sidebarAvatar');
@@ -734,9 +574,7 @@ async function init() {
       sidebarAvatar.textContent = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
     }
 
-    initDarkMode();
-    initSidebar();
-
+    // تهيئة الوضع المظلم والقائمة الجانبية (يتم في ملف main.js)
     document.getElementById('logoutBtn')?.addEventListener('click', async () => {
       await logoutUser();
       window.location.href = '../login.html';
@@ -753,4 +591,4 @@ async function init() {
 }
 
 init();
-console.log('✅ Reports.js loaded successfully (Dynamic + Treasury)');
+console.log('✅ Reports.js loaded successfully');
