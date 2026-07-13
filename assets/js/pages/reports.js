@@ -1,5 +1,6 @@
 // =============================================================
-// reports.js - النسخة المحسّنة النهائية
+// reports.js - الإصدار النهائي مع حسابات ديناميكية
+// يدعم: إحصائيات دقيقة، رسوم بيانية، تصدير Excel/PDF، فلاتر زمنية
 // =============================================================
 import { onAuthStateChangedCallback, logoutUser } from '../auth.js';
 import { db } from '../firebase-config.js';
@@ -16,23 +17,16 @@ import {
 // 1.  المتغيرات العامة وإدارة الحالة
 // =============================================================
 const state = {
-  // البيانات الخام
   orders: [],
   customers: [],
   employees: [],
   payments: [],
   services: [],
-  // الفلترة
-  currentFilter: '30', // 7, 30, 90, 365, all, custom
+  currentFilter: '30',
   dateFrom: null,
   dateTo: null,
-  // الرسوم البيانية
   charts: {},
-  // البيانات المُفلترة (تُحدّث عند تغيير الفلتر)
-  filtered: {
-    orders: [],
-    payments: []
-  }
+  filtered: { orders: [], payments: [] }
 };
 
 // =============================================================
@@ -80,13 +74,12 @@ function showToast(message, type = 'success') {
 }
 
 // =============================================================
-// 3.  تحميل البيانات الأساسية (قراءة لمرة واحدة)
+// 3.  تحميل البيانات الأساسية
 // =============================================================
 async function fetchAllData() {
   try {
     showToast('جاري تحميل البيانات...', 'info');
 
-    // تحميل جميع المجموعات بالتوازي لتحسين الأداء
     const [ordersSnap, customersSnap, employeesSnap, paymentsSnap, servicesSnap] = await Promise.all([
       getDocs(collection(db, 'orders')),
       getDocs(collection(db, 'customers')),
@@ -128,7 +121,7 @@ async function fetchAllData() {
 }
 
 // =============================================================
-// 4.  منطق الفلترة الزمنية المتقدم
+// 4.  منطق الفلترة الزمنية
 // =============================================================
 function getDateRange() {
   const now = new Date();
@@ -137,37 +130,25 @@ function getDateRange() {
   toDate.setHours(23, 59, 59, 999);
 
   switch (state.currentFilter) {
-    case '7':
-      fromDate.setDate(now.getDate() - 7);
-      break;
-    case '30':
-      fromDate.setDate(now.getDate() - 30);
-      break;
-    case '90':
-      fromDate.setMonth(now.getMonth() - 3);
-      break;
-    case '365':
-      fromDate.setFullYear(now.getFullYear() - 1);
-      break;
+    case '7': fromDate.setDate(now.getDate() - 7); break;
+    case '30': fromDate.setDate(now.getDate() - 30); break;
+    case '90': fromDate.setMonth(now.getMonth() - 3); break;
+    case '365': fromDate.setFullYear(now.getFullYear() - 1); break;
     case 'custom':
       if (state.dateFrom && state.dateTo) {
         fromDate = new Date(state.dateFrom + 'T00:00:00');
         toDate = new Date(state.dateTo + 'T23:59:59');
-      } else {
-        return null;
-      }
+      } else return null;
       break;
     case 'all':
-    default:
-      return null; // لا فلترة
+    default: return null;
   }
   return { fromDate, toDate };
 }
 
 function filterDataByDate(data, dateField = 'createdAt') {
   const range = getDateRange();
-  if (!range) return data; // الكل
-
+  if (!range) return data;
   const { fromDate, toDate } = range;
   return data.filter(item => {
     let date = item[dateField];
@@ -175,7 +156,6 @@ function filterDataByDate(data, dateField = 'createdAt') {
     if (date instanceof Date) date = date;
     else if (typeof date === 'string') date = new Date(date);
     else return false;
-
     return date >= fromDate && date <= toDate;
   });
 }
@@ -187,21 +167,15 @@ function applyAllFilters() {
 }
 
 // =============================================================
-// 5.  تحديث واجهة المستخدم (UI)
+// 5.  تحديث واجهة المستخدم
 // =============================================================
 function updateUI() {
   const { orders, payments } = state.filtered;
-
-  // 5.1 البطاقات الإحصائية
   updateStatsCards(orders, payments);
-
-  // 5.2 الرسوم البيانية (تدمير القديم وإنشاء جديد)
   destroyCharts();
   createCharts(orders, payments);
-
-  // 5.3 التقارير الجدولية
   updateOrdersReport(orders);
-  updateCustomersReport();
+  updateCustomersReport(); // 👈 تم تعديل هذه الدالة
   updateEmployeesReport();
   updatePaymentsReport(payments);
 }
@@ -225,23 +199,19 @@ function updateStatsCards(orders, payments) {
 // 7.  الرسوم البيانية (مع دعم RTL)
 // =============================================================
 function destroyCharts() {
-  if (state.charts.status) { state.charts.status.destroy(); }
-  if (state.charts.revenue) { state.charts.revenue.destroy(); }
-  if (state.charts.services) { state.charts.services.destroy(); }
-  if (state.charts.employees) { state.charts.employees.destroy(); }
+  Object.values(state.charts).forEach(chart => chart?.destroy());
+  state.charts = {};
 }
 
 function createCharts(orders, payments) {
-  // إعدادات Chart.js للـ RTL
   Chart.defaults.font.family = 'Almarai, sans-serif';
+  const colors = ['#ff6600', '#0d6efd', '#28a745', '#8b5cf6', '#ffc107', '#dc3545'];
 
-  // 7.1 توزيع الطلبات حسب الحالة (دائري)
+  // 7.1 توزيع الطلبات حسب الحالة
   const statusMap = {};
   orders.forEach(o => { statusMap[o.status || 'غير معروف'] = (statusMap[o.status || 'غير معروف'] || 0) + 1; });
   const statusLabels = Object.keys(statusMap);
   const statusData = Object.values(statusMap);
-  const colors = ['#ff6600', '#0d6efd', '#28a745', '#ffc107', '#dc3545', '#8b5cf6'];
-
   const ctx1 = document.getElementById('ordersStatusChart')?.getContext('2d');
   if (ctx1) {
     state.charts.status = new Chart(ctx1, {
@@ -257,14 +227,12 @@ function createCharts(orders, payments) {
       options: {
         responsive: true,
         cutout: '65%',
-        plugins: {
-          legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } }
-        }
+        plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } } }
       }
     });
   }
 
-  // 7.2 الإيرادات الشهرية (شريطي)
+  // 7.2 الإيرادات الشهرية
   const monthlyRevenue = {};
   const now = new Date();
   for (let i = 5; i >= 0; i--) {
@@ -281,7 +249,6 @@ function createCharts(orders, payments) {
   });
   const revenueLabels = Object.keys(monthlyRevenue);
   const revenueData = Object.values(monthlyRevenue);
-
   const ctx2 = document.getElementById('monthlyRevenueChart')?.getContext('2d');
   if (ctx2) {
     state.charts.revenue = new Chart(ctx2, {
@@ -306,7 +273,7 @@ function createCharts(orders, payments) {
     });
   }
 
-  // 7.3 الخدمات الأكثر طلبًا (دائري)
+  // 7.3 الخدمات الأكثر طلبًا
   const serviceCount = {};
   orders.forEach(o => {
     const service = state.services.find(s => s.id === o.serviceId);
@@ -316,7 +283,6 @@ function createCharts(orders, payments) {
   const sortedServices = Object.entries(serviceCount).sort((a, b) => b[1] - a[1]).slice(0, 6);
   const svcLabels = sortedServices.map(s => s[0]);
   const svcData = sortedServices.map(s => s[1]);
-
   const ctx3 = document.getElementById('topServicesChart')?.getContext('2d');
   if (ctx3) {
     state.charts.services = new Chart(ctx3, {
@@ -336,7 +302,7 @@ function createCharts(orders, payments) {
     });
   }
 
-  // 7.4 أداء الموظفين (شريطي)
+  // 7.4 أداء الموظفين
   const employeeOrders = {};
   orders.forEach(o => {
     if (o.employeeId) {
@@ -347,7 +313,6 @@ function createCharts(orders, payments) {
     name: e.name || 'غير معروف',
     count: employeeOrders[e.id] || 0
   })).sort((a, b) => b.count - a.count).slice(0, 8);
-
   const ctx4 = document.getElementById('employeePerformanceChart')?.getContext('2d');
   if (ctx4) {
     state.charts.employees = new Chart(ctx4, {
@@ -374,14 +339,13 @@ function createCharts(orders, payments) {
 }
 
 // =============================================================
-// 8.  التقارير الجدولية (مع صفوف الإجمالي)
+// 8.  التقارير الجدولية (مع حسابات ديناميكية)
 // =============================================================
 
 // 8.1 تقرير الطلبات
 function updateOrdersReport(orders) {
   const tbody = document.getElementById('ordersReportBody');
   if (!tbody) return;
-
   const data = orders.slice(0, 100);
   if (data.length === 0) {
     tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">لا توجد طلبات</td></tr>`;
@@ -389,19 +353,14 @@ function updateOrdersReport(orders) {
   }
 
   let html = '';
-  let totalSum = 0;
-  let paidSum = 0;
-  let remainingSum = 0;
-
+  let totalSum = 0, paidSum = 0, remainingSum = 0;
   data.forEach(o => {
     const customer = state.customers.find(c => c.id === o.customerId);
     const service = state.services.find(s => s.id === o.serviceId);
     const total = o.total || 0;
     const paid = o.paid || 0;
     const remaining = total - paid;
-    totalSum += total;
-    paidSum += paid;
-    remainingSum += remaining;
+    totalSum += total; paidSum += paid; remainingSum += remaining;
 
     html += `
       <tr>
@@ -415,8 +374,6 @@ function updateOrdersReport(orders) {
       </tr>
     `;
   });
-
-  // صف الإجمالي
   html += `
     <tr style="font-weight:bold;background:var(--bg-input);">
       <td colspan="4" style="text-align:center;">الإجمالي</td>
@@ -425,11 +382,10 @@ function updateOrdersReport(orders) {
       <td>${formatCurrency(remainingSum)}</td>
     </tr>
   `;
-
   tbody.innerHTML = html;
 }
 
-// 8.2 تقرير العملاء (يعتمد على totalPaid و balance المخزنة في العميل)
+// 8.2 تقرير العملاء (مُعدّل بحساب ديناميكي) 👈 التصحيح الأهم
 function updateCustomersReport() {
   const tbody = document.getElementById('customersReportBody');
   if (!tbody) return;
@@ -444,10 +400,19 @@ function updateCustomersReport() {
   let totalBalanceSum = 0;
 
   state.customers.forEach(c => {
-    const ordersCount = state.orders.filter(o => o.customerId === c.id).length;
-    const paid = c.totalPaid || 0;
-    const balance = c.balance || 0;
-    totalPaidSum += paid;
+    // حساب إجمالي الطلبات وقيمتها من orders
+    const customerOrders = state.orders.filter(o => o.customerId === c.id);
+    const ordersCount = customerOrders.length;
+    const totalOrdersValue = customerOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+
+    // حساب إجمالي المدفوعات من payments
+    const customerPayments = state.payments.filter(p => p.customerId === c.id);
+    const totalPaid = customerPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    // حساب المتبقي
+    const balance = totalOrdersValue - totalPaid;
+
+    totalPaidSum += totalPaid;
     totalBalanceSum += balance;
 
     html += `
@@ -455,7 +420,7 @@ function updateCustomersReport() {
         <td>${escapeHtml(c.name || '')}</td>
         <td>${escapeHtml(c.phone || '')}</td>
         <td>${ordersCount}</td>
-        <td>${formatCurrency(paid)}</td>
+        <td>${formatCurrency(totalPaid)}</td>
         <td>${formatCurrency(balance)}</td>
       </tr>
     `;
@@ -477,22 +442,18 @@ function updateCustomersReport() {
 function updateEmployeesReport() {
   const tbody = document.getElementById('employeesReportBody');
   if (!tbody) return;
-
   if (state.employees.length === 0) {
     tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">لا يوجد موظفين</td></tr>`;
     return;
   }
-
   let html = '';
   let totalCommissionSum = 0;
-
   state.employees.forEach(e => {
     const empOrders = state.orders.filter(o => o.employeeId === e.id);
     const completed = empOrders.filter(o => o.status === 'مكتمل').length;
     const rate = empOrders.length > 0 ? Math.round((completed / empOrders.length) * 100) : 0;
     const commission = empOrders.reduce((sum, o) => sum + ((o.total || 0) * (e.commission || 0) / 100), 0);
     totalCommissionSum += commission;
-
     html += `
       <tr>
         <td>${escapeHtml(e.name || '')}</td>
@@ -503,41 +464,33 @@ function updateEmployeesReport() {
       </tr>
     `;
   });
-
-  // صف الإجمالي
   html += `
     <tr style="font-weight:bold;background:var(--bg-input);">
       <td colspan="4" style="text-align:center;">الإجمالي</td>
       <td>${formatCurrency(totalCommissionSum)}</td>
     </tr>
   `;
-
   tbody.innerHTML = html;
 }
 
-// 8.4 تقرير المدفوعات (يعرض اسم العميل بشكل صحيح)
+// 8.4 تقرير المدفوعات
 function updatePaymentsReport(payments) {
   const tbody = document.getElementById('paymentsReportBody');
   if (!tbody) return;
-
   const data = payments.slice(0, 100);
   if (data.length === 0) {
     tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted">لا توجد مدفوعات</td></tr>`;
     return;
   }
-
   let html = '';
   let amountSum = 0;
-
   data.forEach(p => {
-    // جلب اسم العميل من payment أو البحث في قائمة العملاء
     let customerName = p.customerName || 'غير معروف';
     if (!p.customerName) {
       const customer = state.customers.find(c => c.id === p.customerId);
       customerName = customer ? customer.name : 'غير معروف';
     }
     amountSum += p.amount || 0;
-
     html += `
       <tr>
         <td>${escapeHtml(customerName)}</td>
@@ -547,8 +500,6 @@ function updatePaymentsReport(payments) {
       </tr>
     `;
   });
-
-  // صف الإجمالي
   html += `
     <tr style="font-weight:bold;background:var(--bg-input);">
       <td style="text-align:center;">الإجمالي</td>
@@ -556,7 +507,6 @@ function updatePaymentsReport(payments) {
       <td colspan="2"></td>
     </tr>
   `;
-
   tbody.innerHTML = html;
 }
 
@@ -570,19 +520,11 @@ function getActiveTable() {
   return document.getElementById(tabId);
 }
 
-// 9.1 تصدير Excel
 function exportToExcel() {
   const tableContainer = getActiveTable();
-  if (!tableContainer) {
-    showToast('لا يوجد جدول لتصديره', 'warning');
-    return;
-  }
+  if (!tableContainer) { showToast('لا يوجد جدول لتصديره', 'warning'); return; }
   const table = tableContainer.querySelector('table');
-  if (!table) {
-    showToast('الجدول غير موجود', 'warning');
-    return;
-  }
-
+  if (!table) { showToast('الجدول غير موجود', 'warning'); return; }
   try {
     const wb = XLSX.utils.table_to_book(table, { sheet: 'تقرير', raw: true });
     XLSX.writeFile(wb, `تقرير_${new Date().toISOString().slice(0,10)}.xlsx`);
@@ -593,21 +535,11 @@ function exportToExcel() {
   }
 }
 
-// 9.2 تصدير PDF
 async function exportToPdf() {
   const tableContainer = getActiveTable();
-  if (!tableContainer) {
-    showToast('لا يوجد جدول لتصديره', 'warning');
-    return;
-  }
-
+  if (!tableContainer) { showToast('لا يوجد جدول لتصديره', 'warning'); return; }
   try {
-    const canvas = await html2canvas(tableContainer, {
-      scale: 2,
-      backgroundColor: '#ffffff',
-      useCORS: true,
-      logging: false
-    });
+    const canvas = await html2canvas(tableContainer, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
     const imgData = canvas.toDataURL('image/png');
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'mm', 'a4');
@@ -622,29 +554,15 @@ async function exportToPdf() {
   }
 }
 
-// 9.3 طباعة
 function printReport() {
   const tableContainer = getActiveTable();
-  if (!tableContainer) {
-    showToast('لا يوجد جدول للطباعة', 'warning');
-    return;
-  }
-
+  if (!tableContainer) { showToast('لا يوجد جدول للطباعة', 'warning'); return; }
   const win = window.open('', '_blank');
   const content = tableContainer.innerHTML;
   win.document.write(`
-    <html>
-      <head>
-        <title>تقرير</title>
-        <style>
-          body { font-family: 'Almarai', sans-serif; direction: rtl; padding: 20px; }
-          table { width: 100%; border-collapse: collapse; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
-          th { background: #f5f5f5; }
-        </style>
-      </head>
-      <body>${content}</body>
-    </html>
+    <html><head><title>تقرير</title>
+    <style>body{font-family:'Almarai',sans-serif;direction:rtl;padding:20px;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #ddd;padding:8px;text-align:right;} th{background:#f5f5f5;}</style>
+    </head><body>${content}</body></html>
   `);
   win.document.close();
   win.print();
@@ -654,38 +572,25 @@ function printReport() {
 // 10. أحداث الفلاتر والأزرار
 // =============================================================
 function setupEventListeners() {
-  // أزرار الفلاتر السريعة
   document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.addEventListener('click', function() {
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
       this.classList.add('active');
       state.currentFilter = this.dataset.filter;
       if (state.currentFilter === 'custom') {
-        // تطبيق التاريخ المخصص إذا كان محدداً
         const from = document.getElementById('dateFrom')?.value;
         const to = document.getElementById('dateTo')?.value;
-        if (from && to) {
-          state.dateFrom = from;
-          state.dateTo = to;
-        } else {
-          state.currentFilter = '30'; // الرجوع للافتراضي
-          document.querySelector('.filter-btn[data-filter="30"]')?.classList.add('active');
-          showToast('يرجى تحديد تاريخ البداية والنهاية', 'warning');
-          return;
-        }
+        if (from && to) { state.dateFrom = from; state.dateTo = to; }
+        else { state.currentFilter = '30'; document.querySelector('.filter-btn[data-filter="30"]')?.classList.add('active'); showToast('يرجى تحديد تاريخ البداية والنهاية', 'warning'); return; }
       }
       applyAllFilters();
     });
   });
 
-  // زر التاريخ المخصص
   document.getElementById('applyCustomDate')?.addEventListener('click', () => {
     const from = document.getElementById('dateFrom')?.value;
     const to = document.getElementById('dateTo')?.value;
-    if (!from || !to) {
-      showToast('يرجى تحديد تاريخ البداية والنهاية', 'warning');
-      return;
-    }
+    if (!from || !to) { showToast('يرجى تحديد تاريخ البداية والنهاية', 'warning'); return; }
     state.dateFrom = from;
     state.dateTo = to;
     state.currentFilter = 'custom';
@@ -693,7 +598,6 @@ function setupEventListeners() {
     applyAllFilters();
   });
 
-  // أزرار التصدير
   document.getElementById('exportExcelBtn')?.addEventListener('click', exportToExcel);
   document.getElementById('exportPdfBtn')?.addEventListener('click', exportToPdf);
   document.getElementById('printBtn')?.addEventListener('click', printReport);
@@ -720,7 +624,6 @@ function initDarkMode() {
         htmlElement.removeAttribute('data-theme');
         localStorage.setItem('theme', 'light');
         this.innerHTML = '<i class="fas fa-moon"></i>';
-        // تحديث ألوان الرسوم البيانية للوضع الفاتح (سيتم إعادة رسمها عند التبديل)
         applyAllFilters();
       } else {
         htmlElement.setAttribute('data-theme', 'dark');
@@ -735,14 +638,13 @@ function initDarkMode() {
 function initSidebar() {
   const sidebarToggle = document.getElementById('sidebarToggle');
   const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
   if (sidebarToggle && sidebar) {
     sidebarToggle.addEventListener('click', () => {
       sidebar.classList.toggle('active');
-      const overlay = document.getElementById('sidebar-overlay');
       if (overlay) overlay.classList.toggle('active');
     });
   }
-  const overlay = document.getElementById('sidebar-overlay');
   if (overlay) {
     overlay.addEventListener('click', () => {
       sidebar.classList.remove('active');
@@ -752,19 +654,13 @@ function initSidebar() {
 }
 
 // =============================================================
-// 12.  التهيئة العامة
+// 12. التهيئة العامة
 // =============================================================
 async function init() {
   console.log('🚀 Initializing Reports page...');
-
-  // التحقق من المصادقة
   onAuthStateChangedCallback(async (user) => {
-    if (!user) {
-      window.location.href = '../login.html';
-      return;
-    }
-
-    // تحديث بيانات المستخدم في الـ Sidebar
+    if (!user) { window.location.href = '../login.html'; return; }
+    // تحديث بيانات المستخدم
     const sidebarUserName = document.getElementById('sidebarUserName');
     const sidebarUserEmail = document.getElementById('sidebarUserEmail');
     const sidebarAvatar = document.getElementById('sidebarAvatar');
@@ -774,20 +670,16 @@ async function init() {
       sidebarAvatar.textContent = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
     }
 
-    // إعداد الواجهة
     initDarkMode();
     initSidebar();
 
-    // تسجيل الخروج
     document.getElementById('logoutBtn')?.addEventListener('click', async () => {
       await logoutUser();
       window.location.href = '../login.html';
     });
 
-    // تحميل البيانات
     const success = await fetchAllData();
     if (success) {
-      // تعيين الفلتر الافتراضي (آخر 30 يوم)
       state.currentFilter = '30';
       document.querySelector('.filter-btn[data-filter="30"]')?.classList.add('active');
       applyAllFilters();
@@ -796,7 +688,5 @@ async function init() {
   });
 }
 
-// بدء التطبيق
 init();
-
-console.log('✅ Reports.js loaded successfully (Professional version)');
+console.log('✅ Reports.js loaded successfully (Dynamic calculations)');
