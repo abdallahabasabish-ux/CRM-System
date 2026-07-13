@@ -19,33 +19,131 @@
   <link rel="stylesheet" href="assets/css/style.css" />
 
   <style>
-    /* تحسينات إضافية للوحة التحكم */
-    .stat-card .trend {
-      font-size: 12px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .stat-card .trend.up { color: #28a745; }
-    .stat-card .trend.down { color: #dc3545; }
-    .stat-card .trend.neutral { color: #ffc107; }
-
+    /* ===== تحسينات خاصة بلوحة التحكم ===== */
     .stat-card .stat-icon {
-      width: 50px;
-      height: 50px;
-      border-radius: 12px;
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 22px;
+      font-size: 24px;
+      transition: all 0.3s;
     }
-    .stat-card .stat-icon.blue { background: rgba(13, 110, 253, 0.12); color: #0d6efd; }
-    .stat-card .stat-icon.green { background: rgba(40, 167, 69, 0.12); color: #28a745; }
-    .stat-card .stat-icon.orange { background: rgba(255, 102, 0, 0.12); color: #ff6600; }
-    .stat-card .stat-icon.purple { background: rgba(139, 92, 246, 0.12); color: #8b5cf6; }
-    .stat-card .stat-icon.red { background: rgba(220, 53, 69, 0.12); color: #dc3545; }
-    .stat-card .stat-icon.teal { background: rgba(32, 201, 151, 0.12); color: #20c997; }
-    .stat-card .stat-icon.gold { background: rgba(255, 193, 7, 0.12); color: #ffc107; }
+    .stat-card:hover .stat-icon {
+      transform: scale(1.1);
+    }
+    .stat-card .trend {
+      font-size: 12px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 10px;
+      border-radius: 20px;
+      background: rgba(40,167,69,0.12);
+      color: #28a745;
+    }
+    .stat-card .trend.down {
+      background: rgba(220,53,69,0.12);
+      color: #dc3545;
+    }
+    .stat-card .trend.neutral {
+      background: rgba(255,193,7,0.12);
+      color: #ffc107;
+    }
+    .stat-card .info h6 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .stat-card .info h3 {
+      font-size: 30px;
+      font-weight: 700;
+      margin: 4px 0 8px;
+      color: var(--text-primary);
+    }
+
+    /* قسم الخزينة في لوحة التحكم (نفس تصميم التقارير) */
+    .treasury-dashboard-header {
+      background: linear-gradient(135deg, var(--color-primary), #1a1a1a);
+      color: #fff;
+      border-radius: var(--radius-md);
+      padding: 20px 28px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: var(--shadow-md);
+    }
+    .treasury-dashboard-header h4 {
+      margin: 0;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .treasury-dashboard-header .badge-balance {
+      background: rgba(255,255,255,0.15);
+      padding: 8px 20px;
+      border-radius: var(--radius-full);
+      font-size: 22px;
+      font-weight: 700;
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .treasury-dashboard-header .badge-balance small {
+      font-size: 14px;
+      font-weight: 400;
+      opacity: 0.8;
+      margin-left: 8px;
+    }
+
+    .treasury-stats-grid-mini {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .treasury-stat-mini {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      text-align: center;
+      transition: var(--transition);
+    }
+    .treasury-stat-mini:hover {
+      border-color: var(--color-primary);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-sm);
+    }
+    .treasury-stat-mini .number {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .treasury-stat-mini .label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .treasury-stat-mini .icon {
+      font-size: 18px;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .icon-deposit { color: #28a745; }
+    .icon-withdraw { color: #dc3545; }
+    .icon-transfer { color: var(--color-primary); }
+    .icon-balance { color: #ffc107; }
 
     .payment-method-badge {
       font-size: 12px;
@@ -60,31 +158,31 @@
       font-weight: 700;
       color: var(--color-primary);
     }
-
     .recent-payments-table td {
       vertical-align: middle;
     }
 
-    .treasury-section {
-      border-top: 2px solid var(--border-color);
-      padding-top: 24px;
-      margin-top: 8px;
+    @media (max-width: 768px) {
+      .treasury-dashboard-header {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+      }
+      .treasury-dashboard-header .badge-balance {
+        font-size: 18px;
+      }
     }
   </style>
 </head>
 <body>
 
-  <!-- ========================================================= -->
-  <!-- الطبقة المظللة للـ Sidebar (للجوال) -->
-  <!-- ========================================================= -->
+  <!-- ===== الطبقة المظللة ===== -->
   <div id="sidebar-overlay" onclick="document.getElementById('sidebar').classList.remove('active')"></div>
 
-  <!-- ========================================================= -->
-  <!-- القائمة الجانبية (موحدة) -->
-  <!-- ========================================================= -->
+  <!-- ===== القائمة الجانبية (موحدة) ===== -->
   <aside id="sidebar">
     <div class="sidebar-header">
-      <div class="logo-icon">A</div>
+      <div class="logo-icon">ن</div>
       <div class="brand-text">نظام <span>الإدارة</span></div>
     </div>
     <ul class="sidebar-menu">
@@ -112,12 +210,8 @@
     </div>
   </aside>
 
-  <!-- ========================================================= -->
-  <!-- المحتوى الرئيسي -->
-  <!-- ========================================================= -->
+  <!-- ===== المحتوى الرئيسي ===== -->
   <div id="main-content">
-
-    <!-- الشريط العلوي -->
     <header id="topbar">
       <div class="topbar-left">
         <button class="hamburger" id="sidebarToggle"><i class="fas fa-bars"></i></button>
@@ -129,11 +223,10 @@
       </div>
     </header>
 
-    <!-- مساحة العمل -->
     <section id="workspace">
 
-      <!-- ===== بطاقات الإحصائيات الرئيسية ===== -->
-      <div class="stats-grid">
+      <!-- ===== 1. بطاقات الإحصائيات الرئيسية ===== -->
+      <div class="stats-grid mb-4" id="statsCards">
         <div class="stat-card">
           <div class="info">
             <h6>إجمالي العملاء</h6>
@@ -142,7 +235,6 @@
           </div>
           <div class="stat-icon blue"><i class="fas fa-users"></i></div>
         </div>
-
         <div class="stat-card">
           <div class="info">
             <h6>الطلبات الجارية</h6>
@@ -151,7 +243,6 @@
           </div>
           <div class="stat-icon orange"><i class="fas fa-spinner"></i></div>
         </div>
-
         <div class="stat-card">
           <div class="info">
             <h6>إجمالي المدفوعات</h6>
@@ -160,7 +251,6 @@
           </div>
           <div class="stat-icon green"><i class="fas fa-credit-card"></i></div>
         </div>
-
         <div class="stat-card">
           <div class="info">
             <h6>الطلبات المكتملة</h6>
@@ -169,7 +259,6 @@
           </div>
           <div class="stat-icon purple"><i class="fas fa-check-circle"></i></div>
         </div>
-
         <div class="stat-card">
           <div class="info">
             <h6>الإيرادات الإجمالية</h6>
@@ -178,7 +267,6 @@
           </div>
           <div class="stat-icon teal"><i class="fas fa-dollar-sign"></i></div>
         </div>
-
         <div class="stat-card">
           <div class="info">
             <h6>عدد الدفعات</h6>
@@ -189,43 +277,42 @@
         </div>
       </div>
 
-      <!-- ===== بطاقات الخزينة ===== -->
-      <div class="treasury-section">
-        <h6 class="text-muted mb-3"><i class="fas fa-wallet me-2"></i>الخزينة الشخصية</h6>
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="info">
-              <h6>رصيد الخزينة</h6>
-              <h3 id="treasuryBalance">$0.00</h3>
-            </div>
-            <div class="stat-icon blue"><i class="fas fa-wallet"></i></div>
-          </div>
-          <div class="stat-card">
-            <div class="info">
-              <h6>إجمالي الإيداعات</h6>
-              <h3 id="treasuryDeposits">$0.00</h3>
-            </div>
-            <div class="stat-icon green"><i class="fas fa-arrow-down"></i></div>
-          </div>
-          <div class="stat-card">
-            <div class="info">
-              <h6>إجمالي السحوبات</h6>
-              <h3 id="treasuryWithdrawals">$0.00</h3>
-            </div>
-            <div class="stat-icon red"><i class="fas fa-arrow-up"></i></div>
-          </div>
-          <div class="stat-card">
-            <div class="info">
-              <h6>عدد المعاملات</h6>
-              <h3 id="treasuryTxCount">0</h3>
-            </div>
-            <div class="stat-icon purple"><i class="fas fa-list"></i></div>
-          </div>
+      <!-- ===== 2. قسم الخزينة (بنفس تصميم التقارير) ===== -->
+      <div class="treasury-dashboard-header">
+        <div>
+          <h4><i class="fas fa-wallet" style="color: #ff6600;"></i> الخزينة الشخصية</h4>
+          <span style="opacity:0.7; font-size:14px;">حركة الأموال في حسابك</span>
+        </div>
+        <div class="badge-balance" id="treasuryHeaderBalance">
+          <small>الرصيد الحالي</small> $0.00
         </div>
       </div>
 
-      <!-- ===== الرسوم البيانية ===== -->
-      <div class="charts-grid mt-4">
+      <div class="treasury-stats-grid-mini" id="treasuryMiniStats">
+        <div class="treasury-stat-mini">
+          <span class="icon icon-deposit"><i class="fas fa-arrow-down"></i></span>
+          <div class="number" id="miniTotalDeposits">$0.00</div>
+          <div class="label">إجمالي الإيداعات</div>
+        </div>
+        <div class="treasury-stat-mini">
+          <span class="icon icon-withdraw"><i class="fas fa-arrow-up"></i></span>
+          <div class="number" id="miniTotalWithdrawals">$0.00</div>
+          <div class="label">إجمالي السحوبات</div>
+        </div>
+        <div class="treasury-stat-mini">
+          <span class="icon icon-transfer"><i class="fas fa-exchange-alt"></i></span>
+          <div class="number" id="miniTotalTransfers">$0.00</div>
+          <div class="label">إجمالي التحويلات</div>
+        </div>
+        <div class="treasury-stat-mini">
+          <span class="icon icon-balance"><i class="fas fa-coins"></i></span>
+          <div class="number" id="miniTxCount">0</div>
+          <div class="label">عدد المعاملات</div>
+        </div>
+      </div>
+
+      <!-- ===== 3. الرسوم البيانية ===== -->
+      <div class="charts-grid mb-4">
         <div class="chart-card">
           <h5>توزيع الخدمات</h5>
           <canvas id="servicesChart" height="180"></canvas>
@@ -244,7 +331,7 @@
         </div>
       </div>
 
-      <!-- ===== جدول آخر الدفعات ===== -->
+      <!-- ===== 4. جداول آخر المدفوعات والعملاء ===== -->
       <div class="table-wrapper mt-4">
         <div class="table-header">
           <h5><i class="fas fa-credit-card me-2"></i>آخر المدفوعات</h5>
@@ -268,7 +355,6 @@
         </div>
       </div>
 
-      <!-- ===== جدول آخر العملاء ===== -->
       <div class="table-wrapper mt-4">
         <div class="table-header">
           <h5><i class="fas fa-user-plus me-2"></i>آخر العملاء</h5>
