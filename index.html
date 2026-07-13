@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>نظام إدارة الأعمال</title>
   <!-- Bootstrap 5 + RTL -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
-  <!-- Font Awesome 6 -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <!-- الأنماط المخصصة -->
-  <link rel="stylesheet" href="assets/css/style.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet" />
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="assets/css/style.css" />
 </head>
 <body>
   <div class="container vh-100 d-flex justify-content-center align-items-center">
@@ -21,16 +20,7 @@
     </div>
   </div>
 
-  <!-- Firebase SDK (compat v9) -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
-  <!-- ملف إعدادات Firebase -->
-  <script src="assets/js/firebase-config.js"></script>
-  <!-- دوال المصادقة -->
-  <script src="assets/js/auth.js"></script>
-  <!-- تهيئة التطبيق -->
-  <script src="assets/js/app.js"></script>
+  <!-- تحميل التطبيق كوحدة ES -->
+  <script type="module" src="assets/js/main.js"></script>
 </body>
 </html>
