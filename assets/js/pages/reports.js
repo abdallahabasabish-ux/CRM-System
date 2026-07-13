@@ -1,6 +1,9 @@
 // =============================================================
-// reports.js - إصدار احترافي مع دعم الخزينة وتحسينات UI
+// reports.js - الإصدار الاحترافي النهائي
+// يدعم: جميع التقارير (الطلبات، العملاء، الموظفين، المدفوعات، الخزينة)
+// مع تصميم متقدم، فلاتر زمنية، تصدير، ورسوم بيانية تفاعلية
 // =============================================================
+
 import { onAuthStateChangedCallback, logoutUser } from '../auth.js';
 import { db } from '../firebase-config.js';
 import {
@@ -13,7 +16,7 @@ import {
 } from 'firebase/firestore';
 
 // =============================================================
-// 1.  المتغيرات العامة
+// 1.  المتغيرات العامة وإدارة الحالة
 // =============================================================
 const state = {
   orders: [],
@@ -78,7 +81,7 @@ function showToast(message, type = 'success') {
 }
 
 // =============================================================
-// 3.  تحميل البيانات (مع الخزينة)
+// 3.  تحميل البيانات الأساسية (مع الخزينة)
 // =============================================================
 async function fetchAllData() {
   try {
@@ -93,12 +96,27 @@ async function fetchAllData() {
       getDocs(collection(db, 'treasury'))
     ]);
 
-    state.orders = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt }));
+    state.orders = ordersSnap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt || null
+    }));
+
     state.customers = customersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     state.employees = employeesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     state.services = servicesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    state.payments = paymentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), paymentDate: doc.data().paymentDate?.toDate?.() || doc.data().paymentDate }));
-    state.treasury = treasurySnap.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt }));
+
+    state.payments = paymentsSnap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      paymentDate: doc.data().paymentDate?.toDate?.() || doc.data().paymentDate || null
+    }));
+
+    state.treasury = treasurySnap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt || null
+    }));
 
     showToast('تم تحميل البيانات بنجاح', 'success');
     return true;
@@ -110,7 +128,7 @@ async function fetchAllData() {
 }
 
 // =============================================================
-// 4.  الفلترة الزمنية (مشتركة)
+// 4.  منطق الفلترة الزمنية (مشترك)
 // =============================================================
 function getDateRange() {
   const now = new Date();
@@ -169,10 +187,11 @@ function updateUI() {
   updateEmployeesReport();
   updatePaymentsReport(payments);
   updateTreasuryReport(treasury);
+  updateTreasuryMiniStats(treasury);
 }
 
 // =============================================================
-// 6.  بطاقات الإحصائيات (مع الخزينة)
+// 6.  بطاقات الإحصائيات الرئيسية
 // =============================================================
 function updateStatsCards(orders, payments, treasury) {
   const totalCustomers = state.customers.length;
@@ -187,7 +206,29 @@ function updateStatsCards(orders, payments, treasury) {
 }
 
 // =============================================================
-// 7.  الرسوم البيانية (مع تحديث)
+// 7.  إحصائيات الخزينة المصغرة (Mini Stats)
+// =============================================================
+function updateTreasuryMiniStats(treasuryData) {
+  const deposits = treasuryData.filter(t => t.type === 'deposit').reduce((s, t) => s + (t.amount || 0), 0);
+  const withdrawals = treasuryData.filter(t => t.type === 'withdraw').reduce((s, t) => s + (t.amount || 0), 0);
+  const transfers = treasuryData.filter(t => t.type === 'transfer').reduce((s, t) => s + (t.amount || 0), 0);
+  const balance = deposits - withdrawals + transfers;
+
+  const miniDeposits = document.getElementById('miniTotalDeposits');
+  const miniWithdrawals = document.getElementById('miniTotalWithdrawals');
+  const miniTransfers = document.getElementById('miniTotalTransfers');
+  const miniTxCount = document.getElementById('miniTxCount');
+  const headerBalance = document.getElementById('treasuryHeaderBalance');
+
+  if (miniDeposits) miniDeposits.textContent = formatCurrency(deposits);
+  if (miniWithdrawals) miniWithdrawals.textContent = formatCurrency(withdrawals);
+  if (miniTransfers) miniTransfers.textContent = formatCurrency(transfers);
+  if (miniTxCount) miniTxCount.textContent = treasuryData.length;
+  if (headerBalance) headerBalance.innerHTML = `<small>الرصيد الحالي</small> ${formatCurrency(balance)}`;
+}
+
+// =============================================================
+// 8.  الرسوم البيانية (مع دعم RTL)
 // =============================================================
 function destroyCharts() {
   Object.values(state.charts).forEach(chart => chart?.destroy());
@@ -198,7 +239,7 @@ function createCharts(orders, payments, treasury) {
   Chart.defaults.font.family = 'Almarai, sans-serif';
   const colors = ['#ff6600', '#0d6efd', '#28a745', '#8b5cf6', '#ffc107', '#dc3545'];
 
-  // 7.1 توزيع الطلبات حسب الحالة
+  // 8.1 توزيع الطلبات حسب الحالة (دائري)
   const statusMap = {};
   orders.forEach(o => { statusMap[o.status || 'غير معروف'] = (statusMap[o.status || 'غير معروف'] || 0) + 1; });
   const statusLabels = Object.keys(statusMap);
@@ -223,7 +264,7 @@ function createCharts(orders, payments, treasury) {
     });
   }
 
-  // 7.2 الإيرادات الشهرية
+  // 8.2 الإيرادات الشهرية (شريطي)
   const monthlyRevenue = {};
   const now = new Date();
   for (let i = 5; i >= 0; i--) {
@@ -264,7 +305,7 @@ function createCharts(orders, payments, treasury) {
     });
   }
 
-  // 7.3 الخدمات الأكثر طلباً
+  // 8.3 الخدمات الأكثر طلباً (دائري)
   const serviceCount = {};
   orders.forEach(o => {
     const svc = state.services.find(s => s.id === o.serviceId);
@@ -293,7 +334,7 @@ function createCharts(orders, payments, treasury) {
     });
   }
 
-  // 7.4 أداء الموظفين
+  // 8.4 أداء الموظفين (شريطي)
   const empOrders = {};
   orders.forEach(o => { if (o.employeeId) empOrders[o.employeeId] = (empOrders[o.employeeId] || 0) + 1; });
   const empData = state.employees.map(e => ({ name: e.name || 'غير معروف', count: empOrders[e.id] || 0 }))
@@ -324,8 +365,10 @@ function createCharts(orders, payments, treasury) {
 }
 
 // =============================================================
-// 8.  تقارير الجداول (مع إضافة الخزينة)
+// 9.  التقارير الجدولية (جميع الأقسام)
 // =============================================================
+
+// 9.1 تقرير الطلبات
 function updateOrdersReport(orders) {
   const tbody = document.getElementById('ordersReportBody');
   if (!tbody) return;
@@ -356,6 +399,7 @@ function updateOrdersReport(orders) {
   tbody.innerHTML = html;
 }
 
+// 9.2 تقرير العملاء (محسوب ديناميكياً)
 function updateCustomersReport() {
   const tbody = document.getElementById('customersReportBody');
   if (!tbody) return;
@@ -383,6 +427,7 @@ function updateCustomersReport() {
   tbody.innerHTML = html;
 }
 
+// 9.3 تقرير الموظفين
 function updateEmployeesReport() {
   const tbody = document.getElementById('employeesReportBody');
   if (!tbody) return;
@@ -409,6 +454,7 @@ function updateEmployeesReport() {
   tbody.innerHTML = html;
 }
 
+// 9.4 تقرير المدفوعات
 function updatePaymentsReport(payments) {
   const tbody = document.getElementById('paymentsReportBody');
   if (!tbody) return;
@@ -433,39 +479,58 @@ function updatePaymentsReport(payments) {
   tbody.innerHTML = html;
 }
 
-function updateTreasuryReport(treasury) {
+// 9.5 تقرير الخزينة (مع تصميم مميز)
+function updateTreasuryReport(treasuryData) {
   const tbody = document.getElementById('treasuryReportBody');
   if (!tbody) return;
-  const data = treasury.slice(0,100);
+  const data = treasuryData.slice(0, 100);
   if (data.length === 0) {
     tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted">لا توجد معاملات خزينة</td></tr>`;
     return;
   }
-  let html = '', totalDeposits=0, totalWithdrawals=0, totalTransfers=0;
+  let html = '';
+  let totalDeposits = 0, totalWithdrawals = 0, totalTransfers = 0;
+
   data.forEach(tx => {
     const typeMap = { deposit: 'إيداع', withdraw: 'سحب', transfer: 'تحويل' };
     const typeLabel = typeMap[tx.type] || tx.type;
     const amount = tx.amount || 0;
     const sign = tx.type === 'withdraw' ? '-' : '+';
-    const color = tx.type === 'withdraw' ? 'text-danger' : 'text-success';
+    const rowClass = tx.type === 'withdraw' ? 'tx-withdraw-row' : tx.type === 'deposit' ? 'tx-deposit-row' : 'tx-transfer-row';
+
     if (tx.type === 'deposit') totalDeposits += amount;
     else if (tx.type === 'withdraw') totalWithdrawals += amount;
     else if (tx.type === 'transfer') totalTransfers += amount;
-    html += `<tr>
-      <td>${formatDate(tx.createdAt)}</td>
-      <td><span class="badge-status badge bg-${tx.type === 'deposit' ? 'success' : tx.type === 'withdraw' ? 'danger' : 'warning'}">${typeLabel}</span></td>
-      <td class="${color}">${sign}${formatCurrency(amount)}</td>
-      <td>${escapeHtml(tx.source || tx.target || '-')}</td>
-      <td>${escapeHtml(tx.note || '')}</td>
-    </tr>`;
+
+    let badgeClass = 'badge bg-success';
+    if (tx.type === 'withdraw') badgeClass = 'badge bg-danger';
+    else if (tx.type === 'transfer') badgeClass = 'badge bg-warning text-dark';
+
+    html += `
+      <tr class="${rowClass}">
+        <td>${formatDate(tx.createdAt)}</td>
+        <td><span class="${badgeClass}" style="font-weight:600;">${typeLabel}</span></td>
+        <td class="tx-amount">${sign}${formatCurrency(amount)}</td>
+        <td>${escapeHtml(tx.source || tx.target || '-')}</td>
+        <td>${escapeHtml(tx.note || '')}</td>
+      </tr>
+    `;
   });
+
   const balance = totalDeposits - totalWithdrawals + totalTransfers;
-  html += `<tr class="report-total-row"><td colspan="2" style="text-align:center;">الإجمالي</td><td>الإيداعات: ${formatCurrency(totalDeposits)}</td><td>السحوبات: ${formatCurrency(totalWithdrawals)}</td><td>الرصيد: ${formatCurrency(balance)}</td></tr>`;
+  html += `
+    <tr class="report-total-row" style="background: var(--color-primary); color: #fff;">
+      <td colspan="2" style="text-align:center; font-weight:700;">الإجمالي</td>
+      <td style="font-weight:700;">الإيداعات: ${formatCurrency(totalDeposits)}</td>
+      <td style="font-weight:700;">السحوبات: ${formatCurrency(totalWithdrawals)}</td>
+      <td style="font-weight:700;">الرصيد: ${formatCurrency(balance)}</td>
+    </tr>
+  `;
   tbody.innerHTML = html;
 }
 
 // =============================================================
-// 9.  وظائف التصدير (Excel, PDF, طباعة)
+// 10.  وظائف التصدير (Excel, PDF, طباعة)
 // =============================================================
 function getActiveTable() {
   const activeTab = document.querySelector('#reportTabs .nav-link.active');
@@ -493,7 +558,12 @@ async function exportToPdf() {
   const tableContainer = getActiveTable();
   if (!tableContainer) { showToast('لا يوجد جدول لتصديره', 'warning'); return; }
   try {
-    const canvas = await html2canvas(tableContainer, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+    const canvas = await html2canvas(tableContainer, {
+      scale: 2,
+      backgroundColor: '#ffffff',
+      useCORS: true,
+      logging: false
+    });
     const imgData = canvas.toDataURL('image/png');
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'mm', 'a4');
@@ -523,9 +593,10 @@ function printReport() {
 }
 
 // =============================================================
-// 10.  أحداث الفلاتر والأزرار
+// 11.  أحداث الفلاتر والأزرار
 // =============================================================
 function setupEventListeners() {
+  // أزرار الفلاتر السريعة
   document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.addEventListener('click', function() {
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -534,17 +605,28 @@ function setupEventListeners() {
       if (state.currentFilter === 'custom') {
         const from = document.getElementById('dateFrom')?.value;
         const to = document.getElementById('dateTo')?.value;
-        if (from && to) { state.dateFrom = from; state.dateTo = to; }
-        else { state.currentFilter = '30'; document.querySelector('.filter-btn[data-filter="30"]')?.classList.add('active'); showToast('يرجى تحديد تاريخ البداية والنهاية', 'warning'); return; }
+        if (from && to) {
+          state.dateFrom = from;
+          state.dateTo = to;
+        } else {
+          state.currentFilter = '30';
+          document.querySelector('.filter-btn[data-filter="30"]')?.classList.add('active');
+          showToast('يرجى تحديد تاريخ البداية والنهاية', 'warning');
+          return;
+        }
       }
       applyAllFilters();
     });
   });
 
+  // تطبيق التاريخ المخصص
   document.getElementById('applyCustomDate')?.addEventListener('click', () => {
     const from = document.getElementById('dateFrom')?.value;
     const to = document.getElementById('dateTo')?.value;
-    if (!from || !to) { showToast('يرجى تحديد تاريخ البداية والنهاية', 'warning'); return; }
+    if (!from || !to) {
+      showToast('يرجى تحديد تاريخ البداية والنهاية', 'warning');
+      return;
+    }
     state.dateFrom = from;
     state.dateTo = to;
     state.currentFilter = 'custom';
@@ -552,18 +634,24 @@ function setupEventListeners() {
     applyAllFilters();
   });
 
+  // أزرار التصدير
   document.getElementById('exportExcelBtn')?.addEventListener('click', exportToExcel);
   document.getElementById('exportPdfBtn')?.addEventListener('click', exportToPdf);
   document.getElementById('printBtn')?.addEventListener('click', printReport);
 }
 
 // =============================================================
-// 11.  التهيئة العامة
+// 12.  التهيئة العامة للصفحة
 // =============================================================
 async function init() {
-  console.log('🚀 Initializing Reports page...');
+  console.log('🚀 Initializing Reports page (Professional version)...');
+
   onAuthStateChangedCallback(async (user) => {
-    if (!user) { window.location.href = '../login.html'; return; }
+    if (!user) {
+      window.location.href = '../login.html';
+      return;
+    }
+
     // تحديث بيانات المستخدم في الـ Sidebar
     const sidebarUserName = document.getElementById('sidebarUserName');
     const sidebarUserEmail = document.getElementById('sidebarUserEmail');
@@ -571,24 +659,30 @@ async function init() {
     if (sidebarUserName) sidebarUserName.textContent = user.displayName || user.email;
     if (sidebarUserEmail) sidebarUserEmail.textContent = user.email;
     if (sidebarAvatar) {
-      sidebarAvatar.textContent = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
+      sidebarAvatar.textContent = user.displayName
+        ? user.displayName.charAt(0).toUpperCase()
+        : user.email.charAt(0).toUpperCase();
     }
 
-    // تهيئة الوضع المظلم والقائمة الجانبية (يتم في ملف main.js)
+    // إعداد تسجيل الخروج
     document.getElementById('logoutBtn')?.addEventListener('click', async () => {
       await logoutUser();
       window.location.href = '../login.html';
     });
 
+    // تحميل البيانات
     const success = await fetchAllData();
     if (success) {
       state.currentFilter = '30';
-      document.querySelector('.filter-btn[data-filter="30"]')?.classList.add('active');
+      const defaultBtn = document.querySelector('.filter-btn[data-filter="30"]');
+      if (defaultBtn) defaultBtn.classList.add('active');
       applyAllFilters();
       setupEventListeners();
     }
   });
 }
 
+// بدء التطبيق
 init();
-console.log('✅ Reports.js loaded successfully');
+
+console.log('✅ Reports.js loaded successfully (Full version with Treasury support)');
