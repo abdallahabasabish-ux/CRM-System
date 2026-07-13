@@ -1,3 +1,6 @@
+// =============================================================
+// customers.js - إدارة العملاء مع عرض totalPaid و balance
+// =============================================================
 import { onAuthStateChangedCallback, logoutUser } from '../auth.js';
 import { db } from '../firebase-config.js';
 import {
@@ -8,24 +11,63 @@ import {
   deleteDoc,
   onSnapshot,
   query,
-  orderBy
+  orderBy,
+  Timestamp
 } from 'firebase/firestore';
 
-// ============================
-// متغيرات عامة
-// ============================
+// =============================================================
+// 1.  المتغيرات العامة
+// =============================================================
 let customers = [];
 let editingId = null;
 let customersListener = null;
+let customerModalInstance = null;
 
-// ============================
-// 1. المصادقة
-// ============================
-onAuthStateChangedCallback((user) => {
+// =============================================================
+// 2.  دوال مساعدة (Utilities)
+// =============================================================
+function formatCurrency(amount, currency = '$') {
+  if (amount === undefined || amount === null) return `${currency}0.00`;
+  return `${currency}${amount.toFixed(2)}`;
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function showToast(message, type = 'success') {
+  const colors = {
+    success: 'linear-gradient(to right, #00b09b, #96c93d)',
+    error: 'linear-gradient(to right, #ff5f6d, #ffc371)',
+    warning: 'linear-gradient(to right, #f7971e, #ffd200)',
+    info: 'linear-gradient(to right, #ff6600, #ff8533)'
+  };
+  if (typeof Toastify !== 'undefined') {
+    Toastify({
+      text: message,
+      duration: 3000,
+      gravity: 'bottom',
+      position: 'left',
+      style: { background: colors[type] || colors.info },
+      className: 'rounded-3 shadow'
+    }).showToast();
+  } else {
+    console.log(message);
+  }
+}
+
+// =============================================================
+// 3.  المصادقة والتهيئة
+// =============================================================
+onAuthStateChangedCallback(async (user) => {
   if (!user) {
     window.location.href = '../login.html';
     return;
   }
+
   // تحديث بيانات المستخدم في الـ Sidebar
   const sidebarUserName = document.getElementById('sidebarUserName');
   const sidebarUserEmail = document.getElementById('sidebarUserEmail');
@@ -33,127 +75,128 @@ onAuthStateChangedCallback((user) => {
   if (sidebarUserName) sidebarUserName.textContent = user.displayName || user.email;
   if (sidebarUserEmail) sidebarUserEmail.textContent = user.email;
   if (sidebarAvatar) {
-    sidebarAvatar.textContent = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
+    sidebarAvatar.textContent = user.displayName
+      ? user.displayName.charAt(0).toUpperCase()
+      : user.email.charAt(0).toUpperCase();
   }
-  
+
+  // تهيئة الوضع المظلم والقائمة الجانبية
+  initDarkMode();
+  initSidebar();
+
+  // تسجيل الخروج
+  document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+    await logoutUser();
+    window.location.href = '../login.html';
+  });
+
+  // تهيئة Modal
+  const modalElement = document.getElementById('customerModal');
+  if (modalElement) {
+    customerModalInstance = new bootstrap.Modal(modalElement);
+  }
+
+  // تحميل العملاء
   listenToCustomers();
+
+  // ربط الأحداث
+  document.getElementById('addCustomerBtn')?.addEventListener('click', openAddModal);
+  document.getElementById('saveCustomerBtn')?.addEventListener('click', saveCustomer);
+  document.getElementById('searchInput')?.addEventListener('input', handleSearch);
 });
 
-// ============================
-// 2. تسجيل الخروج وتبديل الوضع
-// ============================
-document.getElementById('logoutBtn')?.addEventListener('click', async () => {
-  await logoutUser();
-  window.location.href = '../login.html';
-});
+// =============================================================
+// 4.  الوضع المظلم والقائمة الجانبية
+// =============================================================
+function initDarkMode() {
+  const themeToggle = document.getElementById('themeToggle');
+  const htmlElement = document.documentElement;
+  const savedTheme = localStorage.getItem('theme') || 'light';
 
-// تبديل الوضع المظلم (نفس الكود من dashboard)
-const themeToggle = document.getElementById('themeToggle');
-const htmlElement = document.documentElement;
-const savedTheme = localStorage.getItem('theme') || 'light';
-if (savedTheme === 'dark') {
-  htmlElement.setAttribute('data-theme', 'dark');
-  if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
-}
-if (themeToggle) {
-  themeToggle.addEventListener('click', () => {
-    const currentTheme = htmlElement.getAttribute('data-theme');
-    if (currentTheme === 'dark') {
-      htmlElement.removeAttribute('data-theme');
-      localStorage.setItem('theme', 'light');
-      themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
-    } else {
-      htmlElement.setAttribute('data-theme', 'dark');
-      localStorage.setItem('theme', 'dark');
-      themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
-    }
-  });
-}
+  if (savedTheme === 'dark') {
+    htmlElement.setAttribute('data-theme', 'dark');
+    if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+  } else {
+    htmlElement.removeAttribute('data-theme');
+    if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+  }
 
-// تبديل Sidebar للشاشات الصغيرة
-const sidebarToggle = document.getElementById('sidebarToggle');
-const sidebar = document.getElementById('sidebar');
-if (sidebarToggle && sidebar) {
-  sidebarToggle.addEventListener('click', () => {
-    sidebar.classList.toggle('active');
-    const overlay = document.getElementById('sidebar-overlay');
-    if (overlay) overlay.classList.toggle('active');
-  });
-}
-const overlay = document.getElementById('sidebar-overlay');
-if (overlay) {
-  overlay.addEventListener('click', () => {
-    sidebar.classList.remove('active');
-    overlay.classList.remove('active');
-  });
+  if (themeToggle) {
+    themeToggle.addEventListener('click', function() {
+      const currentTheme = htmlElement.getAttribute('data-theme');
+      if (currentTheme === 'dark') {
+        htmlElement.removeAttribute('data-theme');
+        localStorage.setItem('theme', 'light');
+        this.innerHTML = '<i class="fas fa-moon"></i>';
+      } else {
+        htmlElement.setAttribute('data-theme', 'dark');
+        localStorage.setItem('theme', 'dark');
+        this.innerHTML = '<i class="fas fa-sun"></i>';
+      }
+    });
+  }
 }
 
-// ============================
-// 3. تهيئة Modal
-// ============================
-const modalElement = document.getElementById('customerModal');
-let customerModalInstance = null;
-if (modalElement) {
-  customerModalInstance = new bootstrap.Modal(modalElement);
+function initSidebar() {
+  const sidebarToggle = document.getElementById('sidebarToggle');
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+
+  if (sidebarToggle && sidebar) {
+    sidebarToggle.addEventListener('click', () => {
+      sidebar.classList.toggle('active');
+      if (overlay) overlay.classList.toggle('active');
+    });
+  }
+
+  if (overlay) {
+    overlay.addEventListener('click', () => {
+      sidebar.classList.remove('active');
+      overlay.classList.remove('active');
+    });
+  }
 }
 
-// ============================
-// 4. دوال مساعدة (Toast)
-// ============================
-function showToast(message, type = 'success') {
-  const colors = {
-    success: 'linear-gradient(to right, #00b09b, #96c93d)',
-    error: 'linear-gradient(to right, #ff5f6d, #ffc371)',
-    warning: 'linear-gradient(to right, #f7971e, #ffd200)',
-    info: 'linear-gradient(to right, #2193b0, #6dd5ed)'
-  };
-  Toastify({
-    text: message,
-    duration: 3000,
-    gravity: 'bottom',
-    position: 'left',
-    style: { background: colors[type] || colors.info },
-    className: 'rounded-3 shadow'
-  }).showToast();
-}
-
-// ============================
-// 5. قراءة العملاء من Firestore (Realtime)
-// ============================
+// =============================================================
+// 5.  قراءة العملاء (Realtime)
+// =============================================================
 function listenToCustomers() {
-  const customersRef = collection(db, 'customers');
-  const q = query(customersRef, orderBy('createdAt', 'desc'));
+  const q = query(collection(db, 'customers'), orderBy('createdAt', 'desc'));
 
   if (customersListener) {
     customersListener();
   }
 
-  customersListener = onSnapshot(q, (snapshot) => {
-    if (snapshot.empty) {
-      customers = [];
-      renderTable([]);
-      document.getElementById('resultCount').textContent = 'عرض 0 عميل';
-      return;
+  customersListener = onSnapshot(
+    q,
+    (snapshot) => {
+      if (snapshot.empty) {
+        customers = [];
+        renderTable([]);
+        document.getElementById('resultCount').textContent = 'عرض 0 عميل';
+        return;
+      }
+
+      customers = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      const searchTerm = document.getElementById('searchInput')?.value.trim().toLowerCase() || '';
+      const filtered = searchTerm ? filterCustomers(searchTerm) : customers;
+      renderTable(filtered);
+      document.getElementById('resultCount').textContent = `عرض ${filtered.length} عميل`;
+    },
+    (error) => {
+      console.error('Error listening to customers:', error);
+      showToast('حدث خطأ في تحميل العملاء', 'error');
     }
-
-    customers = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-
-    const searchTerm = document.getElementById('searchInput')?.value.trim().toLowerCase() || '';
-    const filtered = searchTerm ? filterCustomers(searchTerm) : customers;
-    renderTable(filtered);
-    document.getElementById('resultCount').textContent = `عرض ${filtered.length} عميل`;
-  }, (error) => {
-    console.error('Error listening to customers:', error);
-    showToast('حدث خطأ في تحميل العملاء', 'error');
-  });
+  );
 }
 
-// ============================
-// 6. عرض الجدول
-// ============================
+// =============================================================
+// 6.  عرض الجدول (مع Event Delegation)
+// =============================================================
 function renderTable(data) {
   const tbody = document.getElementById('customersTableBody');
   if (!tbody) return;
@@ -167,20 +210,31 @@ function renderTable(data) {
   data.forEach((customer, index) => {
     const totalPaid = customer.totalPaid || 0;
     const balance = customer.balance || 0;
+
+    // تحديد لون المتبقي
+    let balanceClass = 'customer-balance zero';
+    if (balance > 0) balanceClass = 'customer-balance positive';
+    else if (balance < 0) balanceClass = 'customer-balance negative';
+
     html += `
       <tr>
         <td>${index + 1}</td>
-        <td><strong>${escapeHtml(customer.name || '')}</strong></td>
+        <td>
+          <div class="d-flex align-items-center gap-2">
+            <div class="customer-avatar">${customer.name ? customer.name.charAt(0).toUpperCase() : 'م'}</div>
+            <strong>${escapeHtml(customer.name || '')}</strong>
+          </div>
+        </td>
         <td>${escapeHtml(customer.phone || '')}</td>
         <td>${escapeHtml(customer.email || '')}</td>
         <td>${escapeHtml(customer.company || '')}</td>
-        <td>$${totalPaid.toFixed(2)}</td>
-        <td>$${balance.toFixed(2)}</td>
+        <td>${formatCurrency(totalPaid)}</td>
+        <td class="${balanceClass}">${formatCurrency(balance)}</td>
         <td>
-          <button class="btn btn-sm btn-outline-primary edit-btn" data-id="${customer.id}" title="تعديل">
+          <button class="btn btn-sm btn-outline-primary action-btn" data-action="edit" data-id="${customer.id}" title="تعديل">
             <i class="fas fa-edit"></i>
           </button>
-          <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${customer.id}" title="حذف">
+          <button class="btn btn-sm btn-outline-danger action-btn" data-action="delete" data-id="${customer.id}" title="حذف">
             <i class="fas fa-trash"></i>
           </button>
         </td>
@@ -189,55 +243,63 @@ function renderTable(data) {
   });
 
   tbody.innerHTML = html;
-
-  tbody.querySelectorAll('.edit-btn').forEach(btn => {
-    btn.addEventListener('click', () => openEditModal(btn.dataset.id));
-  });
-  tbody.querySelectorAll('.delete-btn').forEach(btn => {
-    btn.addEventListener('click', () => confirmDelete(btn.dataset.id));
-  });
+  setupTableActions();
 }
 
-function escapeHtml(text) {
-  if (!text) return '';
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+// =============================================================
+// 6.1 Event Delegation للأزرار
+// =============================================================
+function setupTableActions() {
+  const tbody = document.getElementById('customersTableBody');
+  if (!tbody) return;
+  tbody.removeEventListener('click', handleTableClick);
+  tbody.addEventListener('click', handleTableClick);
 }
 
-// ============================
-// 7. البحث والفلترة
-// ============================
+function handleTableClick(e) {
+  const btn = e.target.closest('.action-btn');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const id = btn.dataset.id;
+  if (!action || !id) return;
+  e.preventDefault();
+  if (action === 'edit') openEditModal(id);
+  else if (action === 'delete') confirmDelete(id);
+}
+
+// =============================================================
+// 7.  البحث
+// =============================================================
 function filterCustomers(term) {
-  return customers.filter(c =>
+  return customers.filter((c) =>
     (c.name && c.name.toLowerCase().includes(term)) ||
     (c.phone && c.phone.includes(term))
   );
 }
 
-document.getElementById('searchInput')?.addEventListener('input', (e) => {
+function handleSearch(e) {
   const term = e.target.value.trim().toLowerCase();
   const filtered = term ? filterCustomers(term) : customers;
   renderTable(filtered);
   document.getElementById('resultCount').textContent = `عرض ${filtered.length} عميل`;
-});
+}
 
-// ============================
-// 8. فتح مودال الإضافة
-// ============================
-document.getElementById('addCustomerBtn')?.addEventListener('click', () => {
+// =============================================================
+// 8.  فتح مودال الإضافة
+// =============================================================
+function openAddModal() {
   editingId = null;
   document.getElementById('modalTitle').textContent = 'إضافة عميل جديد';
   document.getElementById('customerForm').reset();
   document.getElementById('customerId').value = '';
   if (customerModalInstance) customerModalInstance.show();
-});
+}
 
-// ============================
-// 9. فتح مودال التعديل
-// ============================
+// =============================================================
+// 9.  فتح مودال التعديل
+// =============================================================
 function openEditModal(id) {
-  const customer = customers.find(c => c.id === id);
+  const customer = customers.find((c) => c.id === id);
   if (!customer) {
     showToast('العميل غير موجود', 'error');
     return;
@@ -254,17 +316,17 @@ function openEditModal(id) {
   document.getElementById('city').value = customer.city || '';
   document.getElementById('address').value = customer.address || '';
   document.getElementById('notes').value = customer.notes || '';
-  
+
   if (customerModalInstance) customerModalInstance.show();
 }
 
-// ============================
-// 10. حفظ البيانات (إضافة / تعديل)
-// ============================
-document.getElementById('saveCustomerBtn')?.addEventListener('click', async () => {
+// =============================================================
+// 10.  حفظ البيانات (إضافة / تعديل)
+// =============================================================
+async function saveCustomer() {
   const name = document.getElementById('name').value.trim();
   const phone = document.getElementById('phone').value.trim();
-  
+
   if (!name || !phone) {
     showToast('الاسم والهاتف مطلوبان', 'warning');
     return;
@@ -289,9 +351,11 @@ document.getElementById('saveCustomerBtn')?.addEventListener('click', async () =
 
   try {
     if (id) {
+      // تعديل
       await updateDoc(doc(db, 'customers', id), data);
       showToast('تم تحديث العميل بنجاح', 'success');
     } else {
+      // إضافة
       data.createdAt = new Date().toISOString();
       data.totalPaid = 0;
       data.balance = 0;
@@ -306,13 +370,13 @@ document.getElementById('saveCustomerBtn')?.addEventListener('click', async () =
     saveBtn.disabled = false;
     saveBtn.innerHTML = '<i class="fas fa-save me-2"></i>حفظ';
   }
-});
+}
 
-// ============================
-// 11. حذف عميل مع تأكيد
-// ============================
+// =============================================================
+// 11.  حذف عميل مع تأكيد
+// =============================================================
 async function confirmDelete(id) {
-  const customer = customers.find(c => c.id === id);
+  const customer = customers.find((c) => c.id === id);
   if (!customer) return;
 
   const result = await Swal.fire({
@@ -337,12 +401,15 @@ async function confirmDelete(id) {
   }
 }
 
-// ============================
-// 12. إعادة تعيين النموذج عند الإغلاق
-// ============================
-modalElement?.addEventListener('hidden.bs.modal', () => {
-  document.getElementById('customerForm').reset();
-  document.getElementById('customerId').value = '';
-});
+// =============================================================
+// 12.  إعادة تعيين النموذج عند الإغلاق
+// =============================================================
+const modalElement = document.getElementById('customerModal');
+if (modalElement) {
+  modalElement.addEventListener('hidden.bs.modal', () => {
+    document.getElementById('customerForm').reset();
+    document.getElementById('customerId').value = '';
+  });
+}
 
-console.log('✅ صفحة العملاء جاهزة');
+console.log('✅ Customers.js loaded successfully');
