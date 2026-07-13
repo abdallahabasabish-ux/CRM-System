@@ -19,79 +19,65 @@
 </head>
 <body>
 
-  <!-- ========================================================= -->
-  <!-- OVERLAY (للقائمة الجانبية على الجوال) -->
-  <!-- ========================================================= -->
-  <div id="sidebar-overlay"></div>
-
-  <!-- ========================================================= -->
-  <!-- SIDEBAR (القائمة الجانبية) -->
-  <!-- ========================================================= -->
+  <!-- ========================================= -->
+  <!-- SIDEBAR -->
+  <!-- ========================================= -->
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
-      <svg height="24" viewBox="0 0 24 24" width="24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-      <span>نظام الإدارة</span>
+    <div class="sidebar-brand">
+      <i class="fas fa-cube"></i>
+      <span>نظام إدارة الأعمال</span>
     </div>
 
     <ul class="sidebar-menu">
-      <li><a class="menu-item" href="dashboard.html"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> لوحة التحكم</a></li>
-      <li><a class="menu-item active" href="customers.html"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg> العملاء</a></li>
-      <li><a class="menu-item" href="services.html"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg> الخدمات</a></li>
-      <li><a class="menu-item" href="employees.html"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> الموظفون</a></li>
-      <li><a class="menu-item" href="orders.html"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg> الطلبات</a></li>
-      <li><a class="menu-item" href="payments.html"><svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg> المدفوعات</a></li>
-      <li><a class="menu-item" href="invoices.html"><svg viewBox="0 0 24 24"><path d="M20 8h-2.81c-.45-.8-1.27-1.28-2.19-1.28s-1.74.48-2.19 1.28H4v11h16V8zm-4 3H8v-2h8v2zm0 4H8v-2h8v2z"/></svg> الفواتير</a></li>
-      <li><a class="menu-item" href="reports.html"><svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg> التقارير</a></li>
-      <li><a class="menu-item" href="settings.html"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .43-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.49-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg> الإعدادات</a></li>
+      <li><a href="dashboard.html"><i class="fas fa-chart-pie"></i> لوحة التحكم</a></li>
+      <li><a href="customers.html" class="active"><i class="fas fa-users"></i> العملاء</a></li>
+      <li><a href="#"><i class="fas fa-concierge-bell"></i> الخدمات</a></li>
+      <li><a href="#"><i class="fas fa-clipboard-list"></i> الطلبات</a></li>
+      <li><a href="#"><i class="fas fa-user-tie"></i> الموظفون</a></li>
+      <li><a href="#"><i class="fas fa-file-invoice"></i> الفواتير</a></li>
+      <li><a href="#"><i class="fas fa-credit-card"></i> المدفوعات</a></li>
+      <li><a href="#"><i class="fas fa-chart-line"></i> التقارير</a></li>
+      <li><a href="#"><i class="fas fa-cog"></i> الإعدادات</a></li>
     </ul>
 
     <div class="sidebar-footer">
       <div class="user-info">
         <div class="user-avatar" id="sidebarAvatar">م</div>
         <div>
-          <div class="user-name" id="sidebarUserName">المستخدم</div>
-          <div class="user-email" id="sidebarUserEmail">user@email.com</div>
+          <div class="fw-bold" id="sidebarUserName" style="font-size: 14px;">المستخدم</div>
+          <div class="text-muted" style="font-size: 12px;" id="sidebarUserEmail">user@email.com</div>
         </div>
       </div>
     </div>
   </aside>
 
-  <!-- ========================================================= -->
+  <!-- ========================================= -->
   <!-- MAIN CONTENT -->
-  <!-- ========================================================= -->
-  <main class="main-content" id="main-content">
+  <!-- ========================================= -->
+  <main class="main-content">
 
-    <!-- TOPBAR -->
-    <nav class="top-navbar" id="topbar">
-      <div class="topbar-left">
-        <button class="icon-btn d-lg-none" id="sidebarToggle" title="فتح القائمة">
+    <!-- Top Navbar -->
+    <nav class="top-navbar">
+      <div>
+        <button class="d-lg-none btn btn-sm" id="sidebarToggle" style="background: var(--border-color); border-radius: 8px;">
           <i class="fas fa-bars"></i>
         </button>
-        <span class="page-title">العملاء</span>
+        <span class="page-title me-2">العملاء</span>
       </div>
-      <div class="topbar-right">
-        <button class="icon-btn search-btn" id="searchBtn" title="بحث (Ctrl+K)">
-          <i class="fas fa-search"></i>
-          <span class="search-shortcut">Ctrl+K</span>
-        </button>
-        <button class="icon-btn theme-toggle" id="themeToggle" title="تبديل الوضع المظلم">
+      <div class="nav-actions">
+        <button class="theme-toggle" id="themeToggle" title="تبديل الوضع المظلم">
           <i class="fas fa-moon"></i>
         </button>
-        <button class="icon-btn" id="logoutBtn" title="تسجيل الخروج">
+        <button id="logoutBtn" title="تسجيل الخروج">
           <i class="fas fa-sign-out-alt"></i>
         </button>
       </div>
     </nav>
 
-    <!-- WORKSPACE -->
-    <div id="workspace">
+    <!-- المحتوى -->
+    <div class="container-fluid p-3 p-md-4">
 
-      <!-- شريط الأدوات -->
-      <div class="page-header">
-        <h1 class="page-title-large">إدارة العملاء</h1>
-        <div class="breadcrumb">الرئيسية / العملاء</div>
-      </div>
-
+      <!-- شريط الأدوات (بحث + زر إضافة) -->
       <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
         <div class="d-flex gap-2 flex-wrap">
           <div class="input-group" style="max-width: 350px;">
@@ -105,11 +91,11 @@
       </div>
 
       <!-- الجدول -->
-      <div class="card">
+      <div class="card shadow-sm border-0">
         <div class="card-body p-0">
           <div class="table-responsive">
             <table class="table table-hover align-middle mb-0" id="customersTable">
-              <thead>
+              <thead class="bg-light">
                 <tr>
                   <th>#</th>
                   <th>الاسم</th>
@@ -122,20 +108,23 @@
                 </tr>
               </thead>
               <tbody id="customersTableBody">
+                <!-- سيتم ملء البيانات بواسطة JavaScript -->
                 <tr><td colspan="8" class="text-center text-muted py-4">جاري تحميل العملاء...</td></tr>
               </tbody>
             </table>
           </div>
         </div>
       </div>
+
+      <!-- عدد النتائج -->
       <div class="mt-3 text-muted small" id="resultCount">عرض 0 عميل</div>
 
     </div>
   </main>
 
-  <!-- ========================================================= -->
+  <!-- ========================================= -->
   <!-- MODAL: إضافة / تعديل عميل -->
-  <!-- ========================================================= -->
+  <!-- ========================================= -->
   <div class="modal fade" id="customerModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
@@ -146,6 +135,7 @@
         <div class="modal-body">
           <form id="customerForm">
             <input type="hidden" id="customerId" />
+            
             <div class="mb-3">
               <label for="name" class="form-label">الاسم <span class="text-danger">*</span></label>
               <input type="text" class="form-control" id="name" required />
@@ -192,24 +182,9 @@
     </div>
   </div>
 
-  <!-- ========================================================= -->
-  <!-- SEARCH MODAL (Ctrl+K) -->
-  <!-- ========================================================= -->
-  <div id="search-modal">
-    <div class="search-box">
-      <input type="text" class="search-input" placeholder="ابحث في النظام..." id="searchInputModal" />
-      <div class="search-results" id="searchResults"></div>
-    </div>
-  </div>
-
-  <!-- ========================================================= -->
-  <!-- TOAST CONTAINER -->
-  <!-- ========================================================= -->
-  <div id="toast-container"></div>
-
-  <!-- ========================================================= -->
-  <!-- IMPORT MAP & JAVASCRIPT -->
-  <!-- ========================================================= -->
+  <!-- ========================================= -->
+  <!-- Import Map & JavaScript -->
+  <!-- ========================================= -->
   <script type="importmap">
     {
       "imports": {
