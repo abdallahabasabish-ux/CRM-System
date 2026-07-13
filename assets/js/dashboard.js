@@ -1,4 +1,3 @@
-// assets/js/dashboard.js
 import { onAuthStateChangedCallback, logoutUser } from './auth.js';
 
 // ============================
@@ -10,18 +9,26 @@ onAuthStateChangedCallback((user) => {
     return;
   }
   // تحديث بيانات المستخدم في الـ Sidebar
-  document.getElementById('sidebarUserName').textContent = user.displayName || user.email;
-  document.getElementById('sidebarUserEmail').textContent = user.email;
-  document.getElementById('sidebarAvatar').textContent = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
+  const sidebarUserName = document.getElementById('sidebarUserName');
+  const sidebarUserEmail = document.getElementById('sidebarUserEmail');
+  const sidebarAvatar = document.getElementById('sidebarAvatar');
+  if (sidebarUserName) sidebarUserName.textContent = user.displayName || user.email;
+  if (sidebarUserEmail) sidebarUserEmail.textContent = user.email;
+  if (sidebarAvatar) {
+    sidebarAvatar.textContent = user.displayName ? user.displayName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase();
+  }
 });
 
 // ============================
 // 2. تسجيل الخروج
 // ============================
-document.getElementById('logoutBtn').addEventListener('click', async () => {
-  await logoutUser();
-  window.location.href = 'login.html';
-});
+const logoutBtn = document.getElementById('logoutBtn');
+if (logoutBtn) {
+  logoutBtn.addEventListener('click', async () => {
+    await logoutUser();
+    window.location.href = 'login.html';
+  });
+}
 
 // ============================
 // 3. تبديل الوضع المظلم (Dark Mode)
@@ -33,34 +40,55 @@ const htmlElement = document.documentElement;
 const savedTheme = localStorage.getItem('theme') || 'light';
 if (savedTheme === 'dark') {
   htmlElement.setAttribute('data-theme', 'dark');
-  themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+  if (themeToggle) themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
 }
 
-themeToggle.addEventListener('click', () => {
-  const currentTheme = htmlElement.getAttribute('data-theme');
-  if (currentTheme === 'dark') {
-    htmlElement.removeAttribute('data-theme');
-    localStorage.setItem('theme', 'light');
-    themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
-  } else {
-    htmlElement.setAttribute('data-theme', 'dark');
-    localStorage.setItem('theme', 'dark');
-    themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
-  }
-});
+if (themeToggle) {
+  themeToggle.addEventListener('click', () => {
+    const currentTheme = htmlElement.getAttribute('data-theme');
+    if (currentTheme === 'dark') {
+      htmlElement.removeAttribute('data-theme');
+      localStorage.setItem('theme', 'light');
+      themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+    } else {
+      htmlElement.setAttribute('data-theme', 'dark');
+      localStorage.setItem('theme', 'dark');
+      themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+    }
+  });
+}
 
 // ============================
 // 4. تبديل الـ Sidebar (للشاشات الصغيرة)
 // ============================
-document.getElementById('sidebarToggle')?.addEventListener('click', () => {
-  document.getElementById('sidebar').classList.toggle('open');
-});
+const sidebarToggle = document.getElementById('sidebarToggle');
+const sidebar = document.getElementById('sidebar');
+if (sidebarToggle && sidebar) {
+  sidebarToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('active');
+    // إظهار/إخفاء الطبقة المظللة
+    const overlay = document.getElementById('sidebar-overlay');
+    if (overlay) overlay.classList.toggle('active');
+  });
+}
 
 // ============================
-// 5. الرسوم البيانية (Chart.js) - اختياري
+// 5. إغلاق القائمة الجانبية عند النقر على الطبقة المظللة
+// ============================
+const overlay = document.getElementById('sidebar-overlay');
+if (overlay) {
+  overlay.addEventListener('click', () => {
+    sidebar.classList.remove('active');
+    overlay.classList.remove('active');
+  });
+}
+
+// ============================
+// 6. الرسوم البيانية (Chart.js)
 // ============================
 if (typeof Chart !== 'undefined') {
-  const ctx1 = document.getElementById('servicesChart')?.getContext('2d');
+  // مخطط دائري - توزيع الخدمات
+  const ctx1 = document.getElementById('servicesChart');
   if (ctx1) {
     new Chart(ctx1, {
       type: 'doughnut',
@@ -80,7 +108,8 @@ if (typeof Chart !== 'undefined') {
     });
   }
 
-  const ctx2 = document.getElementById('ordersChart')?.getContext('2d');
+  // مخطط شريطي - الطلبات الشهرية
+  const ctx2 = document.getElementById('ordersChart');
   if (ctx2) {
     new Chart(ctx2, {
       type: 'bar',
