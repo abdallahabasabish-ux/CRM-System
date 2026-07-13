@@ -1,5 +1,6 @@
 // =============================================================
-// customers.js - إدارة العملاء مع عرض totalPaid و balance
+// customers.js - إدارة العملاء مع حساب ديناميكي للرصيد
+// يعرض totalPaid و balance محسوبين من الطلبات والمدفوعات
 // =============================================================
 import { onAuthStateChangedCallback, logoutUser } from '../auth.js';
 import { db } from '../firebase-config.js';
@@ -11,15 +12,20 @@ import {
   deleteDoc,
   onSnapshot,
   query,
-  orderBy
+  orderBy,
+  Timestamp
 } from 'firebase/firestore';
 
 // =============================================================
 // 1.  المتغيرات العامة
 // =============================================================
 let customers = [];
+let allOrders = [];      // 🔥 مصفوفة جميع الطلبات
+let allPayments = [];    // 🔥 مصفوفة جميع المدفوعات
 let editingId = null;
 let customersListener = null;
+let ordersListener = null;
+let paymentsListener = null;
 let customerModalInstance = null;
 
 // =============================================================
@@ -95,7 +101,8 @@ onAuthStateChangedCallback(async (user) => {
     customerModalInstance = new bootstrap.Modal(modalElement);
   }
 
-  // تحميل العملاء
+  // 🔥 تحميل البيانات الأساسية (الاستماع للعملاء، الطلبات، المدفوعات)
+  listenToOrdersAndPayments();
   listenToCustomers();
 
   // ربط الأحداث
@@ -157,36 +164,47 @@ function initSidebar() {
 }
 
 // =============================================================
-// 5.  قراءة العملاء (Realtime) - مع تحديث الرصيد
+// 5.  الاستماع للطلبات والمدفوعات (لتحديث الرصيد ديناميكياً)
+// =============================================================
+function listenToOrdersAndPayments() {
+  // 5.1 الاستماع للطلبات
+  if (ordersListener) ordersListener();
+  ordersListener = onSnapshot(
+    query(collection(db, 'orders'), orderBy('createdAt', 'desc')),
+    (snapshot) => {
+      allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // تحديث الجدول إذا كانت العملاء موجودة
+      if (customers.length > 0) applyFiltersAndRender();
+    },
+    (error) => console.error('Error listening to orders:', error)
+  );
+
+  // 5.2 الاستماع للمدفوعات
+  if (paymentsListener) paymentsListener();
+  paymentsListener = onSnapshot(
+    query(collection(db, 'payments'), orderBy('paymentDate', 'desc')),
+    (snapshot) => {
+      allPayments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      if (customers.length > 0) applyFiltersAndRender();
+    },
+    (error) => console.error('Error listening to payments:', error)
+  );
+}
+
+// =============================================================
+// 6.  الاستماع للعملاء
 // =============================================================
 function listenToCustomers() {
-  const q = query(collection(db, 'customers'), orderBy('createdAt', 'desc'));
-
-  if (customersListener) {
-    customersListener();
-  }
+  if (customersListener) customersListener();
 
   customersListener = onSnapshot(
-    q,
+    query(collection(db, 'customers'), orderBy('createdAt', 'desc')),
     (snapshot) => {
-      if (snapshot.empty) {
-        customers = [];
-        renderTable([]);
-        document.getElementById('resultCount').textContent = 'عرض 0 عميل';
-        document.getElementById('totalCustomersBadge').textContent = '0';
-        return;
-      }
-
       customers = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data()
       }));
-
-      const searchTerm = document.getElementById('searchInput')?.value.trim().toLowerCase() || '';
-      const filtered = searchTerm ? filterCustomers(searchTerm) : customers;
-      renderTable(filtered);
-      document.getElementById('resultCount').textContent = `عرض ${filtered.length} عميل`;
-      document.getElementById('totalCustomersBadge').textContent = customers.length;
+      applyFiltersAndRender();
     },
     (error) => {
       console.error('Error listening to customers:', error);
@@ -196,7 +214,26 @@ function listenToCustomers() {
 }
 
 // =============================================================
-// 6.  عرض الجدول (مع Event Delegation)
+// 7.  تطبيق الفلاتر وعرض الجدول (مع حساب ديناميكي)
+// =============================================================
+function applyFiltersAndRender() {
+  const searchTerm = document.getElementById('searchInput')?.value.trim().toLowerCase() || '';
+  let filtered = customers;
+
+  if (searchTerm) {
+    filtered = customers.filter((c) =>
+      (c.name && c.name.toLowerCase().includes(searchTerm)) ||
+      (c.phone && c.phone.includes(searchTerm))
+    );
+  }
+
+  renderTable(filtered);
+  document.getElementById('resultCount').textContent = `عرض ${filtered.length} عميل`;
+  document.getElementById('totalCustomersBadge').textContent = customers.length;
+}
+
+// =============================================================
+// 8.  عرض الجدول (مع حساب ديناميكي من الطلبات والمدفوعات)
 // =============================================================
 function renderTable(data) {
   const tbody = document.getElementById('customersTableBody');
@@ -209,8 +246,17 @@ function renderTable(data) {
 
   let html = '';
   data.forEach((customer, index) => {
-    const totalPaid = customer.totalPaid || 0;
-    const balance = customer.balance || 0;
+    // 🔥🔥🔥 حساب ديناميكي للرصيد والمبلغ المدفوع من البيانات الفعلية
+    // 1. إجمالي قيمة الطلبات
+    const customerOrders = allOrders.filter(o => o.customerId === customer.id);
+    const totalOrdersValue = customerOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+
+    // 2. إجمالي المدفوعات
+    const customerPayments = allPayments.filter(p => p.customerId === customer.id);
+    const totalPaid = customerPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    // 3. المتبقي
+    const balance = totalOrdersValue - totalPaid;
 
     // تحديد لون المتبقي
     let balanceClass = 'balance-zero';
@@ -254,7 +300,7 @@ function renderTable(data) {
 }
 
 // =============================================================
-// 6.1 Event Delegation للأزرار
+// 8.1 Event Delegation للأزرار
 // =============================================================
 function setupTableActions() {
   const tbody = document.getElementById('customersTableBody');
@@ -275,24 +321,23 @@ function handleTableClick(e) {
 }
 
 // =============================================================
-// 7.  البحث
+// 9.  البحث
 // =============================================================
-function filterCustomers(term) {
-  return customers.filter((c) =>
-    (c.name && c.name.toLowerCase().includes(term)) ||
-    (c.phone && c.phone.includes(term))
-  );
-}
-
 function handleSearch(e) {
   const term = e.target.value.trim().toLowerCase();
-  const filtered = term ? filterCustomers(term) : customers;
+  let filtered = customers;
+  if (term) {
+    filtered = customers.filter((c) =>
+      (c.name && c.name.toLowerCase().includes(term)) ||
+      (c.phone && c.phone.includes(term))
+    );
+  }
   renderTable(filtered);
   document.getElementById('resultCount').textContent = `عرض ${filtered.length} عميل`;
 }
 
 // =============================================================
-// 8.  فتح مودال الإضافة
+// 10.  فتح مودال الإضافة
 // =============================================================
 function openAddModal() {
   editingId = null;
@@ -303,7 +348,7 @@ function openAddModal() {
 }
 
 // =============================================================
-// 9.  فتح مودال التعديل
+// 11.  فتح مودال التعديل
 // =============================================================
 function openEditModal(id) {
   const customer = customers.find((c) => c.id === id);
@@ -328,7 +373,7 @@ function openEditModal(id) {
 }
 
 // =============================================================
-// 10.  حفظ البيانات (إضافة / تعديل)
+// 12.  حفظ البيانات (إضافة / تعديل)
 // =============================================================
 async function saveCustomer() {
   const name = document.getElementById('name').value.trim();
@@ -378,7 +423,7 @@ async function saveCustomer() {
 }
 
 // =============================================================
-// 11.  حذف عميل مع تأكيد
+// 13.  حذف عميل مع تأكيد
 // =============================================================
 async function confirmDelete(id) {
   const customer = customers.find((c) => c.id === id);
@@ -407,7 +452,7 @@ async function confirmDelete(id) {
 }
 
 // =============================================================
-// 12.  إعادة تعيين النموذج عند الإغلاق
+// 14.  إعادة تعيين النموذج عند الإغلاق
 // =============================================================
 const modalElement = document.getElementById('customerModal');
 if (modalElement) {
@@ -417,4 +462,4 @@ if (modalElement) {
   });
 }
 
-console.log('✅ Customers.js loaded successfully');
+console.log('✅ Customers.js loaded with dynamic balance calculation');
