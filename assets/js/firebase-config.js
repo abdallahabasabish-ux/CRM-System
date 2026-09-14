@@ -2,7 +2,6 @@ import { initializeApp } from "firebase/app";
 import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDSAf_nl-72K0VsyvCkNvLLn5qzHw-ZRMI",
   authDomain: "crm-system-2ee41.firebaseapp.com",
