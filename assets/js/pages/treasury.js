@@ -14,9 +14,6 @@ import {
   getDoc
 } from 'firebase/firestore';
 
-// =============================================================
-// 1.  المتغيرات العامة
-// =============================================================
 let transactions = [];
 let customers = [];
 let treasuryModalInstance = null;
