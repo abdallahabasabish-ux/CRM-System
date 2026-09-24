@@ -15,9 +15,6 @@ let employees = [];
 let editingId = null;
 let employeesListener = null;
 
-// ============================
-// 1. المصادقة
-// ============================
 onAuthStateChangedCallback((user) => {
   if (!user) {
     window.location.href = '../login.html';
