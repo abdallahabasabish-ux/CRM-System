@@ -1,6 +1,4 @@
-// =============================================================
-// payments.js - الإصدار النهائي مع معاملات وتحديث العميل
-// =============================================================
+
 import { onAuthStateChangedCallback, logoutUser } from '../auth.js';
 import { db } from '../firebase-config.js';
 import {
